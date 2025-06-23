@@ -29,11 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function updatePromptCount() {
   try {
-    const stored = localStorage.getItem('chatgpt-prompts');
-    const prompts = stored ? JSON.parse(stored) : {};
-    const count = Object.keys(prompts).length;
-    
-    document.getElementById('prompt-count').textContent = count;
+    chrome.storage.local.get('chatgpt-prompts', (data) => {
+      const prompts = data['chatgpt-prompts'] || {};
+      const count = Object.keys(prompts).length;
+      document.getElementById('prompt-count').textContent = count;
+    });
   } catch (error) {
     console.error('Failed to load prompts:', error);
     document.getElementById('prompt-count').textContent = '?';

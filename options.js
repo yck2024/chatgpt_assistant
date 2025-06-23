@@ -8,7 +8,7 @@ class PromptManager {
   }
 
   async init() {
-    this.loadPrompts();
+    await this.loadPrompts();
     this.setupEventListeners();
     this.renderPrompts();
   }
@@ -76,6 +76,17 @@ class PromptManager {
 
     // Auto-focus key input
     document.getElementById('prompt-key').focus();
+
+    // Event delegation for Edit/Delete buttons
+    document.getElementById('prompts-container').addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.btn-secondary');
+      const deleteBtn = e.target.closest('.btn-danger');
+      if (editBtn && editBtn.dataset.key) {
+        this.editPrompt(editBtn.dataset.key);
+      } else if (deleteBtn && deleteBtn.dataset.key) {
+        this.deletePrompt(deleteBtn.dataset.key);
+      }
+    });
   }
 
   async addPrompt() {
@@ -118,7 +129,7 @@ class PromptManager {
     try {
       // Add prompt
       this.prompts[cleanKey] = content;
-      this.savePrompts();
+      await this.savePrompts();
 
       // Clear form
       keyInput.value = '';
@@ -126,7 +137,7 @@ class PromptManager {
       keyInput.focus();
 
       // Update UI
-      this.renderPrompts();
+      await this.renderPrompts();
       this.showSuccess(`Prompt "//${cleanKey}" added successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
@@ -140,8 +151,8 @@ class PromptManager {
 
     try {
       delete this.prompts[key];
-      this.savePrompts();
-      this.renderPrompts();
+      await this.savePrompts();
+      await this.renderPrompts();
       this.showSuccess(`Prompt "//${key}" deleted successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
@@ -201,11 +212,11 @@ class PromptManager {
 
       // Add/update prompt
       this.prompts[cleanKey] = newContent;
-      this.savePrompts();
+      await this.savePrompts();
 
       // Close modal and update UI
       this.closeEditModal();
-      this.renderPrompts();
+      await this.renderPrompts();
       this.showSuccess(`Prompt "//${cleanKey}" updated successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
@@ -239,10 +250,10 @@ class PromptManager {
         <div class="prompt-header">
           <div class="prompt-key">//${key}</div>
           <div class="prompt-actions">
-            <button class="btn btn-secondary btn-sm" onclick="promptManager.editPrompt('${key}')">
+            <button class="btn btn-secondary btn-sm" data-key="${key}">
               Edit
             </button>
-            <button class="btn btn-danger btn-sm" onclick="promptManager.deletePrompt('${key}')">
+            <button class="btn btn-danger btn-sm" data-key="${key}">
               Delete
             </button>
           </div>
