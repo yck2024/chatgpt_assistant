@@ -15,21 +15,29 @@ class PromptManager {
 
   async loadPrompts() {
     try {
-      const stored = localStorage.getItem('chatgpt-prompts');
-      this.prompts = stored ? JSON.parse(stored) : {};
+      const result = await new Promise((resolve, reject) => {
+        chrome.storage.local.get('chatgpt-prompts', (data) => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve(data['chatgpt-prompts'] || {});
+        });
+      });
+      this.prompts = result;
     } catch (error) {
       this.showError('Failed to load prompts: ' + error.message);
       this.prompts = {};
     }
   }
 
-  savePrompts() {
+  async savePrompts() {
     try {
-      localStorage.setItem('chatgpt-prompts', JSON.stringify(this.prompts));
-      
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({'chatgpt-prompts': this.prompts}, () => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve();
+        });
+      });
       // Dispatch custom event to notify content script
       window.dispatchEvent(new CustomEvent('promptsUpdated'));
-      
       // Also dispatch to other tabs if possible
       try {
         chrome.tabs.query({url: "*://chatgpt.com/*"}, (tabs) => {
@@ -90,8 +98,8 @@ class PromptManager {
       return;
     }
 
-    // Remove leading slash if present
-    const cleanKey = key.startsWith('/') ? key.substring(1) : key;
+    // Remove leading double slash if present
+    const cleanKey = key.startsWith('//') ? key.substring(2) : key;
 
     // Check for spaces in key
     if (cleanKey.includes(' ')) {
@@ -102,7 +110,7 @@ class PromptManager {
 
     // Check if key already exists
     if (this.prompts[cleanKey]) {
-      this.showError(`Shortcut "${cleanKey}" already exists. Please choose a different key.`);
+      this.showError(`Shortcut "//${cleanKey}" already exists. Please choose a different key.`);
       keyInput.focus();
       return;
     }
@@ -119,14 +127,14 @@ class PromptManager {
 
       // Update UI
       this.renderPrompts();
-      this.showSuccess(`Prompt "/${cleanKey}" added successfully!`);
+      this.showSuccess(`Prompt "//${cleanKey}" added successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
     }
   }
 
   async deletePrompt(key) {
-    if (!confirm(`Are you sure you want to delete the prompt "/${key}"?`)) {
+    if (!confirm(`Are you sure you want to delete the prompt "//${key}"?`)) {
       return;
     }
 
@@ -134,7 +142,7 @@ class PromptManager {
       delete this.prompts[key];
       this.savePrompts();
       this.renderPrompts();
-      this.showSuccess(`Prompt "/${key}" deleted successfully!`);
+      this.showSuccess(`Prompt "//${key}" deleted successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
     }
@@ -168,8 +176,8 @@ class PromptManager {
       return;
     }
 
-    // Remove leading slash if present
-    const cleanKey = newKey.startsWith('/') ? newKey.substring(1) : newKey;
+    // Remove leading double slash if present
+    const cleanKey = newKey.startsWith('//') ? newKey.substring(2) : newKey;
 
     // Check for spaces in key
     if (cleanKey.includes(' ')) {
@@ -180,7 +188,7 @@ class PromptManager {
 
     // Check if key already exists (unless it's the same key we're editing)
     if (cleanKey !== this.editingKey && this.prompts[cleanKey]) {
-      this.showError(`Shortcut "${cleanKey}" already exists. Please choose a different key.`);
+      this.showError(`Shortcut "//${cleanKey}" already exists. Please choose a different key.`);
       keyInput.focus();
       return;
     }
@@ -198,7 +206,7 @@ class PromptManager {
       // Close modal and update UI
       this.closeEditModal();
       this.renderPrompts();
-      this.showSuccess(`Prompt "/${cleanKey}" updated successfully!`);
+      this.showSuccess(`Prompt "//${cleanKey}" updated successfully!`);
     } catch (error) {
       // Error already shown in savePrompts
     }
@@ -229,7 +237,7 @@ class PromptManager {
     container.innerHTML = promptKeys.map(key => `
       <div class="prompt-item">
         <div class="prompt-header">
-          <div class="prompt-key">/${key}</div>
+          <div class="prompt-key">//${key}</div>
           <div class="prompt-actions">
             <button class="btn btn-secondary btn-sm" onclick="promptManager.editPrompt('${key}')">
               Edit
