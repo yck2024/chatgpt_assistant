@@ -13,27 +13,44 @@ class PromptAssistant {
   }
 
   async init() {
-    await this.loadPrompts();
+    this.loadPrompts();
     this.setupEventListeners();
     this.injectStyles();
   }
 
-  async loadPrompts() {
+  loadPrompts() {
     try {
-      const result = await chrome.storage.sync.get(['prompts']);
-      this.prompts = result.prompts || {};
+      const stored = localStorage.getItem('chatgpt-prompts');
+      this.prompts = stored ? JSON.parse(stored) : {};
     } catch (error) {
       console.error('Failed to load prompts:', error);
+      this.prompts = {};
     }
   }
 
   setupEventListeners() {
     // Listen for storage changes
-    chrome.storage.onChanged.addListener((changes, namespace) => {
-      if (namespace === 'sync' && changes.prompts) {
-        this.prompts = changes.prompts.newValue || {};
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'chatgpt-prompts') {
+        this.prompts = e.newValue ? JSON.parse(e.newValue) : {};
       }
     });
+
+    // Listen for custom events from options page
+    window.addEventListener('promptsUpdated', (e) => {
+      this.loadPrompts();
+    });
+
+    // Listen for messages from extension
+    try {
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.action === 'promptsUpdated') {
+          this.loadPrompts();
+        }
+      });
+    } catch (e) {
+      // Chrome runtime not available, ignore
+    }
 
     // Set up observers for dynamic content
     this.observeForTextarea();

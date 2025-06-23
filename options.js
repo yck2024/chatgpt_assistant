@@ -8,23 +8,43 @@ class PromptManager {
   }
 
   async init() {
-    await this.loadPrompts();
+    this.loadPrompts();
     this.setupEventListeners();
     this.renderPrompts();
   }
 
   async loadPrompts() {
     try {
-      const result = await chrome.storage.sync.get(['prompts']);
-      this.prompts = result.prompts || {};
+      const stored = localStorage.getItem('chatgpt-prompts');
+      this.prompts = stored ? JSON.parse(stored) : {};
     } catch (error) {
       this.showError('Failed to load prompts: ' + error.message);
+      this.prompts = {};
     }
   }
 
-  async savePrompts() {
+  savePrompts() {
     try {
-      await chrome.storage.sync.set({ prompts: this.prompts });
+      localStorage.setItem('chatgpt-prompts', JSON.stringify(this.prompts));
+      
+      // Dispatch custom event to notify content script
+      window.dispatchEvent(new CustomEvent('promptsUpdated'));
+      
+      // Also dispatch to other tabs if possible
+      try {
+        chrome.tabs.query({url: "*://chatgpt.com/*"}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {action: 'promptsUpdated'});
+          });
+        });
+        chrome.tabs.query({url: "*://chat.openai.com/*"}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {action: 'promptsUpdated'});
+          });
+        });
+      } catch (e) {
+        // Ignore if chrome.tabs is not available
+      }
     } catch (error) {
       this.showError('Failed to save prompts: ' + error.message);
       throw error;
@@ -90,7 +110,7 @@ class PromptManager {
     try {
       // Add prompt
       this.prompts[cleanKey] = content;
-      await this.savePrompts();
+      this.savePrompts();
 
       // Clear form
       keyInput.value = '';
@@ -112,7 +132,7 @@ class PromptManager {
 
     try {
       delete this.prompts[key];
-      await this.savePrompts();
+      this.savePrompts();
       this.renderPrompts();
       this.showSuccess(`Prompt "/${key}" deleted successfully!`);
     } catch (error) {
@@ -173,7 +193,7 @@ class PromptManager {
 
       // Add/update prompt
       this.prompts[cleanKey] = newContent;
-      await this.savePrompts();
+      this.savePrompts();
 
       // Close modal and update UI
       this.closeEditModal();
@@ -276,4 +296,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
   const modal = document.getElementById('edit-modal');
+  if (e.target === modal) {
+    promptManager.closeEditModal();
+  }
+});
+
+// Handle escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('edit-modal');
+    if (modal.style.display !== 'none') {
+      promptManager.closeEditModal();
+    }
+  }
+});
   
