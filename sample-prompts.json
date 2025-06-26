@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "exportDate": "2024-01-15T10:30:00.000Z",
+  "prompts": {
+    "reviseEnglish": "Please revise the following text to improve its English grammar, clarity, and flow while maintaining the original meaning:",
+    "summarize": "Please provide a concise summary of the following text, highlighting the key points and main ideas:",
+    "explain": "Please explain the following concept in simple terms that a beginner would understand:",
+    "translate": "Please translate the following text to English, maintaining the original tone and meaning:",
+    "codeReview": "Please review the following code for best practices, potential bugs, and suggestions for improvement:"
+  }
+} 

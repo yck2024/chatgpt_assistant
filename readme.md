@@ -8,6 +8,7 @@ A Chrome extension that adds custom prompt shortcuts to ChatGPT, Claude, and Gem
 - **Quick Prompt Access**: Type `//` followed by your shortcut to see available prompts
 - **Autocomplete**: Filter prompts as you type (e.g., `//r` shows prompts starting with "r")
 - **Easy Management**: Add, edit, and delete prompts through a user-friendly interface
+- **Export/Import**: Export your prompts as JSON and import prompts from JSON files
 - **Keyboard Navigation**: Use arrow keys to navigate and Enter/Tab to select
 - **Dark Mode Support**: Automatically adapts to your system's theme
 - **Cross-Platform Sync**: Your prompts work across all supported AI platforms
@@ -60,6 +61,28 @@ Make sure your extension folder contains these files:
 - **Delete**: Click the "Delete" button (with confirmation)
 - **View Count**: The popup shows how many prompts you have saved
 - **Cross-Platform**: Prompts work on all supported AI platforms
+
+### Export and Import Prompts
+
+You can export your prompts as a JSON file and import prompts from JSON files:
+
+- **Export**: Click "Export JSON" in the settings page to download all your prompts
+- **Import**: Click "Import JSON" to select a JSON file with prompts to import
+- **Conflict Resolution**: If imported prompts conflict with existing ones, you'll be asked to confirm overwriting
+- **Backup**: Use export to create backups of your prompt collection
+- **Sharing**: Share your prompt collections with others by exporting and sharing the JSON file
+
+The JSON format includes:
+```json
+{
+  "version": "1.0",
+  "exportDate": "2024-01-15T10:30:00.000Z",
+  "prompts": {
+    "shortcutKey": "prompt content",
+    "anotherKey": "another prompt content"
+  }
+}
+```
 
 ## Example Prompts
 

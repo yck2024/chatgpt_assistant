@@ -254,6 +254,22 @@
                 flex-direction: column;
                 gap: 12px;
             }
+
+            .prompts-list h2 {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .prompts-list h2 + div {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+
+            .prompts-list h2 + div button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -295,7 +311,17 @@
             </div>
 
             <div class="prompts-list">
-                <h2 style="margin-top: 0; margin-bottom: 16px; color: #374151;">Your Prompts</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0; color: #374151;">Your Prompts</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="export-btn">
+                            Export JSON
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="import-btn">
+                            Import JSON
+                        </button>
+                    </div>
+                </div>
                 <div id="prompts-container">
                     <div class="empty-state">
                         <h3>No prompts yet</h3>
@@ -327,6 +353,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Hidden file input for JSON import -->
+    <input type="file" id="import-file-input" accept=".json" style="display: none;">
 
     <script src="options.js"></script>
 </body>

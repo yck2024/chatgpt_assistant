@@ -66,6 +66,21 @@ class PromptManager {
       this.addPrompt();
     });
 
+    // Export button
+    document.getElementById('export-btn').addEventListener('click', () => {
+      this.exportPrompts();
+    });
+
+    // Import button
+    document.getElementById('import-btn').addEventListener('click', () => {
+      document.getElementById('import-file-input').click();
+    });
+
+    // Import file input
+    document.getElementById('import-file-input').addEventListener('change', (e) => {
+      this.importPrompts(e);
+    });
+
     // Enter key in key input
     document.getElementById('prompt-key').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -85,6 +100,38 @@ class PromptManager {
         this.editPrompt(editBtn.dataset.key);
       } else if (deleteBtn && deleteBtn.dataset.key) {
         this.deletePrompt(deleteBtn.dataset.key);
+      }
+    });
+
+    // Edit modal event listeners
+    document.getElementById('edit-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'edit-modal') {
+        this.closeEditModal();
+      }
+    });
+
+    // Edit modal buttons
+    const editModal = document.getElementById('edit-modal');
+    const cancelBtn = editModal.querySelector('button[onclick="closeEditModal()"]');
+    const saveBtn = editModal.querySelector('button[onclick="saveEdit()"]');
+    
+    if (cancelBtn) {
+      cancelBtn.removeAttribute('onclick');
+      cancelBtn.addEventListener('click', () => this.closeEditModal());
+    }
+    
+    if (saveBtn) {
+      saveBtn.removeAttribute('onclick');
+      saveBtn.addEventListener('click', () => this.saveEdit());
+    }
+
+    // Handle escape key for edit modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('edit-modal');
+        if (modal.style.display !== 'none') {
+          this.closeEditModal();
+        }
       }
     });
   }
@@ -263,6 +310,88 @@ class PromptManager {
     `).join('');
   }
 
+  exportPrompts() {
+    if (Object.keys(this.prompts).length === 0) {
+      this.showError('No prompts to export');
+      return;
+    }
+
+    try {
+      const exportData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        prompts: this.prompts
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chatgpt-prompts-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      this.showSuccess('Prompts exported successfully!');
+    } catch (error) {
+      this.showError('Failed to export prompts: ' + error.message);
+    }
+  }
+
+  async importPrompts(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+
+      // Validate the import data structure
+      if (!importData.prompts || typeof importData.prompts !== 'object') {
+        throw new Error('Invalid JSON format: missing or invalid prompts object');
+      }
+
+      const importedPrompts = importData.prompts;
+      const promptKeys = Object.keys(importedPrompts);
+
+      if (promptKeys.length === 0) {
+        this.showError('No prompts found in the imported file');
+        return;
+      }
+
+      // Check for conflicts with existing prompts
+      const conflicts = promptKeys.filter(key => this.prompts[key]);
+      
+      if (conflicts.length > 0) {
+        const shouldOverwrite = confirm(
+          `The following prompts already exist and will be overwritten:\n${conflicts.map(key => `//${key}`).join(', ')}\n\nDo you want to continue?`
+        );
+        
+        if (!shouldOverwrite) {
+          return;
+        }
+      }
+
+      // Merge imported prompts with existing ones
+      Object.assign(this.prompts, importedPrompts);
+      
+      await this.savePrompts();
+      await this.renderPrompts();
+      
+      this.showSuccess(`Successfully imported ${promptKeys.length} prompt(s)!`);
+      
+      // Clear the file input
+      event.target.value = '';
+    } catch (error) {
+      this.showError('Failed to import prompts: ' + error.message);
+      // Clear the file input on error
+      event.target.value = '';
+    }
+  }
+
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -296,20 +425,9 @@ class PromptManager {
   }
 }
 
-// Global functions for onclick handlers
-let promptManager;
-
-function closeEditModal() {
-  promptManager.closeEditModal();
-}
-
-function saveEdit() {
-  promptManager.saveEdit();
-}
-
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
-  promptManager = new PromptManager();
+  new PromptManager();
 });
 
 // Close modal when clicking outside
