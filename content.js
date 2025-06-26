@@ -287,11 +287,17 @@ class PromptAssistant {
         </div>
       `).join('');
 
-    // Add click listeners
+    // Add click and mouse event listeners
     this.autocompleteDiv.querySelectorAll('.prompt-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('mousedown', (e) => {
+        // Use mousedown to avoid blur before click
+        e.preventDefault();
         const index = parseInt(item.dataset.index);
         this.insertPrompt(this.filteredPrompts[index]);
+      });
+      item.addEventListener('mouseenter', () => {
+        this.selectedIndex = parseInt(item.dataset.index);
+        this.updateSelection();
       });
     });
   }

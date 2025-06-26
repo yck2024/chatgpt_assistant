@@ -110,7 +110,7 @@ class PromptManager {
       }
     });
 
-    // Edit modal buttons
+    // Edit modal buttons - remove onclick attributes and add proper event listeners
     const editModal = document.getElementById('edit-modal');
     const cancelBtn = editModal.querySelector('button[onclick="closeEditModal()"]');
     const saveBtn = editModal.querySelector('button[onclick="saveEdit()"]');
@@ -428,23 +428,4 @@ class PromptManager {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
   new PromptManager();
-});
-
-// Close modal when clicking outside
-document.addEventListener('click', (e) => {
-  const modal = document.getElementById('edit-modal');
-  if (e.target === modal) {
-    promptManager.closeEditModal();
-  }
-});
-
-// Handle escape key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const modal = document.getElementById('edit-modal');
-    if (modal.style.display !== 'none') {
-      promptManager.closeEditModal();
-    }
-  }
-});
-  
+}); 

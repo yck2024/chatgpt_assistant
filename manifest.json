@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Prompt Assistant",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Add custom prompt shortcuts to ChatGPT, Claude, and Gemini with autocomplete functionality",
   "permissions": [
     "storage",
