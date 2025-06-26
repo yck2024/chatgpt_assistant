@@ -309,6 +309,10 @@ class PromptAssistant {
     const items = this.autocompleteDiv.querySelectorAll('.prompt-item');
     items.forEach((item, index) => {
       item.classList.toggle('selected', index === this.selectedIndex);
+      if (index === this.selectedIndex) {
+        // Scroll the selected item into view
+        item.scrollIntoView({ block: 'nearest' });
+      }
     });
   }
 
