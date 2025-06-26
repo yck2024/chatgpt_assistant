@@ -228,6 +228,7 @@ class PromptAssistant {
       case 'Tab':
         if (this.selectedIndex >= 0) {
           e.preventDefault();
+          e.stopPropagation(); // Prevent Enter from submitting the form/message
           this.insertPrompt(this.filteredPrompts[this.selectedIndex]);
         }
         break;
@@ -315,9 +316,31 @@ class PromptAssistant {
     if (!this.autocompleteDiv) return;
 
     const rect = textarea.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    // Temporarily show to measure height
+    this.autocompleteDiv.style.visibility = 'hidden';
+    this.autocompleteDiv.style.display = 'block';
+    this.autocompleteDiv.style.maxHeight = '';
+    // Measure the height after rendering content
+    const boxHeight = this.autocompleteDiv.offsetHeight;
+    // Restore maxHeight in case it was set by CSS
+    this.autocompleteDiv.style.maxHeight = '200px';
+    this.autocompleteDiv.style.visibility = '';
+
+    // Calculate available space below and above
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    let top;
+    if (spaceBelow < boxHeight && spaceAbove > boxHeight) {
+      // Show above
+      top = rect.top - boxHeight - 5;
+    } else {
+      // Show below (default)
+      top = rect.bottom + 5;
+    }
     this.autocompleteDiv.style.position = 'fixed';
     this.autocompleteDiv.style.left = `${rect.left}px`;
-    this.autocompleteDiv.style.top = `${rect.bottom + 5}px`;
+    this.autocompleteDiv.style.top = `${top}px`;
     this.autocompleteDiv.style.width = `${Math.max(rect.width, 300)}px`;
     this.autocompleteDiv.style.display = 'block';
   }
@@ -325,6 +348,8 @@ class PromptAssistant {
   insertPrompt(prompt) {
     if (!this.currentInput) return;
     const el = this.currentInput;
+    // Safeguard: only replace if lastSlashPosition is valid
+    if (typeof this.lastSlashPosition !== 'number' || this.lastSlashPosition < 0) return;
     if (el.isContentEditable) {
       // Contenteditable div logic
       const text = el.innerText;
