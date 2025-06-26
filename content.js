@@ -1,4 +1,4 @@
-// ChatGPT Prompt Assistant - Content Script
+// AI Prompt Assistant - Content Script
 class PromptAssistant {
   constructor() {
     this.prompts = {};
@@ -8,8 +8,21 @@ class PromptAssistant {
     this.selectedIndex = -1;
     this.filteredPrompts = [];
     this.lastSlashPosition = -1;
+    this.platform = this.detectPlatform();
     
     this.init();
+  }
+
+  detectPlatform() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('chat.openai.com') || hostname.includes('chatgpt.com')) {
+      return 'chatgpt';
+    } else if (hostname.includes('claude.ai')) {
+      return 'claude';
+    } else if (hostname.includes('gemini.google.com') || hostname.includes('aistudio.google.com')) {
+      return 'gemini';
+    }
+    return 'unknown';
   }
 
   async init() {
@@ -76,22 +89,56 @@ class PromptAssistant {
     this.attachToTextarea();
   }
 
+  getPlatformSelectors() {
+    switch (this.platform) {
+      case 'chatgpt':
+        return [
+          '#prompt-textarea', // contenteditable div
+          'textarea[placeholder*="Message"]',
+          'textarea[data-testid="textbox"]',
+          'textarea'
+        ];
+      case 'claude':
+        return [
+          '[data-testid="composer-input"]',
+          '[contenteditable="true"]',
+          'textarea[placeholder*="Message"]',
+          'textarea[placeholder*="Ask"]',
+          'textarea'
+        ];
+      case 'gemini':
+        return [
+          '[data-testid="composer-input"]',
+          '[contenteditable="true"]',
+          'textarea[placeholder*="Message"]',
+          'textarea[placeholder*="Ask"]',
+          'textarea'
+        ];
+      default:
+        return [
+          'textarea[placeholder*="Message"]',
+          'textarea[placeholder*="Ask"]',
+          '[contenteditable="true"]',
+          'textarea'
+        ];
+    }
+  }
+
   attachToTextarea() {
-    // ChatGPT textarea selectors (may need updates as ChatGPT UI changes)
-    const selectors = [
-      '#prompt-textarea', // contenteditable div
-      'textarea[placeholder*="Message"]',
-      'textarea[data-testid="textbox"]',
-      '#prompt-textarea',
-      'textarea'
-    ];
+    const selectors = this.getPlatformSelectors();
 
     for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el && !el.hasAttribute('data-prompt-assistant')) {
-        el.setAttribute('data-prompt-assistant', 'true');
-        this.setupTextareaEvents(el);
-        break;
+      const elements = document.querySelectorAll(selector);
+      for (const el of elements) {
+        if (el && !el.hasAttribute('data-prompt-assistant')) {
+          // Additional checks for contenteditable elements
+          if (el.isContentEditable || el.tagName === 'TEXTAREA') {
+            el.setAttribute('data-prompt-assistant', 'true');
+            this.setupTextareaEvents(el);
+            console.log(`[PromptAssistant] Attached to ${this.platform} element:`, el);
+            break;
+          }
+        }
       }
     }
   }
@@ -309,7 +356,7 @@ class PromptAssistant {
         }
       };
       setCaret(el, newPos);
-      // Trigger input event for ChatGPT
+      // Trigger input event for the platform
       el.dispatchEvent(new Event('input', { bubbles: true }));
       this.hideAutocomplete();
     } else {
@@ -324,7 +371,7 @@ class PromptAssistant {
       // Set cursor at end of inserted text
       const newPos = this.lastSlashPosition + prompt.value.length;
       textarea.setSelectionRange(newPos, newPos);
-      // Trigger input event for ChatGPT
+      // Trigger input event for the platform
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
       this.hideAutocomplete();
     }

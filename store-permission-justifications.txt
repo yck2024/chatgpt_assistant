@@ -1,0 +1,20 @@
+PERMISSION JUSTIFICATIONS FOR CHROME WEB STORE
+
+STORAGE PERMISSION:
+This extension saves your custom prompt shortcuts locally on your device using Chrome's storage API. This allows your prompts to persist between browser sessions and sync across your devices when Chrome sync is enabled. No data is sent to external servers - everything is stored locally for your privacy and security.
+
+ACTIVE TAB PERMISSION:
+This permission is required to inject the autocomplete functionality into ChatGPT pages when you interact with the extension. It only activates when you click the extension icon or use keyboard shortcuts, and provides temporary access to the current tab to enable seamless prompt insertion. The extension cannot access other tabs or monitor your browsing activity.
+
+HOST PERMISSIONS (chatgpt.com, chat.openai.com):
+These permissions allow the extension to run content scripts on ChatGPT's official websites only. This is essential for the core functionality - providing autocomplete suggestions and keyboard shortcuts within the ChatGPT interface. The extension is limited to these specific domains and cannot access any other websites or your browsing data.
+
+PRIVACY & SECURITY:
+- All data stored locally on your device
+- No external data transmission or collection
+- No access to your ChatGPT conversations
+- Minimal permissions for maximum privacy
+- Data automatically deleted when extension is uninstalled
+
+ALTERNATIVES CONSIDERED:
+We explored alternatives like clipboard APIs and external storage, but these would compromise user experience and privacy. The current permission set provides the best balance of functionality, privacy, and user control. 

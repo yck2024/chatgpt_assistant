@@ -1,14 +1,16 @@
-# ChatGPT Prompt Assistant
+# AI Prompt Assistant
 
-A Chrome extension that adds custom prompt shortcuts to ChatGPT with autocomplete functionality.
+A Chrome extension that adds custom prompt shortcuts to ChatGPT, Claude, and Gemini with autocomplete functionality.
 
 ## Features
 
-- **Quick Prompt Access**: Type `/` followed by your shortcut to see available prompts
-- **Autocomplete**: Filter prompts as you type (e.g., `/r` shows prompts starting with "r")
+- **Multi-Platform Support**: Works with ChatGPT, Claude, and Gemini
+- **Quick Prompt Access**: Type `//` followed by your shortcut to see available prompts
+- **Autocomplete**: Filter prompts as you type (e.g., `//r` shows prompts starting with "r")
 - **Easy Management**: Add, edit, and delete prompts through a user-friendly interface
 - **Keyboard Navigation**: Use arrow keys to navigate and Enter/Tab to select
 - **Dark Mode Support**: Automatically adapts to your system's theme
+- **Cross-Platform Sync**: Your prompts work across all supported AI platforms
 
 ## Installation
 
@@ -40,12 +42,15 @@ Make sure your extension folder contains these files:
 3. Enter a shortcut key (e.g., "reviseEnglish") and the prompt content
 4. Click "Add Prompt"
 
-### Using Prompts in ChatGPT
+### Using Prompts in AI Platforms
 
-1. Go to ChatGPT (chatgpt.com or chat.openai.com)
+1. Go to any supported platform:
+   - **ChatGPT**: chatgpt.com or chat.openai.com
+   - **Claude**: claude.ai
+   - **Gemini**: gemini.google.com or aistudio.google.com
 2. Click in the message input box
-3. Type `/` to see all available prompts
-4. Continue typing to filter (e.g., `/rev` to find "reviseEnglish")
+3. Type `//` to see all available prompts
+4. Continue typing to filter (e.g., `//rev` to find "reviseEnglish")
 5. Use arrow keys to navigate the list
 6. Press Enter or Tab to insert the selected prompt
 
@@ -54,6 +59,7 @@ Make sure your extension folder contains these files:
 - **Edit**: Click the "Edit" button next to any prompt in the settings
 - **Delete**: Click the "Delete" button (with confirmation)
 - **View Count**: The popup shows how many prompts you have saved
+- **Cross-Platform**: Prompts work on all supported AI platforms
 
 ## Example Prompts
 
@@ -71,17 +77,27 @@ Here are some useful prompts to get you started:
 - **Key**: `explain`  
   **Content**: "Please explain the following concept in simple terms:"
 
+- **Key**: `codeReview`  
+  **Content**: "Please review this code and suggest improvements for readability and performance:"
+
+## Supported Platforms
+
+- **ChatGPT** (chatgpt.com, chat.openai.com)
+- **Claude** (claude.ai)
+- **Gemini** (gemini.google.com, aistudio.google.com)
+
 ## Technical Details
 
 - **Storage**: Uses Chrome's sync storage to keep prompts across devices
-- **Compatibility**: Works with ChatGPT web interface
+- **Compatibility**: Works with multiple AI platform web interfaces
 - **Performance**: Lightweight with minimal impact on page load
 - **Privacy**: All data stored locally, no external servers
+- **Platform Detection**: Automatically detects and adapts to different AI platforms
 
 ## Troubleshooting
 
 ### Autocomplete Not Showing
-- Make sure you're on chatgpt.com or chat.openai.com
+- Make sure you're on a supported platform (ChatGPT, Claude, or Gemini)
 - Try refreshing the page
 - Check that the extension is enabled in chrome://extensions/
 
@@ -91,9 +107,14 @@ Here are some useful prompts to get you started:
 - Reload the extension if needed
 
 ### Interface Issues
-- Clear browser cache and reload ChatGPT
+- Clear browser cache and reload the AI platform
 - Make sure you're using a recent version of Chrome
 - Check for conflicts with other extensions
+
+### Platform-Specific Issues
+- **ChatGPT**: Works with both contenteditable and textarea inputs
+- **Claude**: Optimized for Claude's interface elements
+- **Gemini**: Compatible with Gemini's input system
 
 ## Development
 
@@ -110,7 +131,8 @@ Here are some useful prompts to get you started:
 ```
 
 ### Key Components
-- **Content Script**: Handles ChatGPT page interaction and autocomplete
+- **Content Script**: Handles multi-platform page interaction and autocomplete
+- **Platform Detection**: Automatically identifies and adapts to different AI platforms
 - **Options Page**: Manages prompt storage and editing
 - **Popup**: Quick access and status display
 - **Storage**: Chrome sync storage for cross-device syncing
