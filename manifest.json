@@ -4,8 +4,7 @@
   "version": "2.5",
   "description": "Add custom prompt shortcuts to ChatGPT, Claude, and Gemini with autocomplete functionality",
   "permissions": [
-    "storage",
-    "activeTab"
+    "storage"
   ],
   "content_scripts": [
     {
