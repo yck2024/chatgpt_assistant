@@ -25,49 +25,54 @@
 
 ---
 
-### 2. `activeTab` Permission
+### 2. `notifications` Permission
 
-**What it does:** Grants temporary access to the currently active tab when the user interacts with the extension.
+**What it does:** Allows the extension to display system notifications to the user.
 
 **Why we need it:**
-- **ChatGPT integration:** Extension needs to inject autocomplete functionality into ChatGPT pages
-- **User-triggered access:** Only activates when user clicks extension icon or uses keyboard shortcuts
-- **Minimal scope:** Access is limited to the specific tab and only when needed
-- **Dynamic content:** ChatGPT's interface is dynamic and requires real-time interaction
+- **User feedback:** Notify users when prompts are successfully saved or imported
+- **Error alerts:** Inform users when there are issues with prompt operations
+- **Import/export status:** Provide feedback when bulk operations complete
+- **Enhanced UX:** Give users clear confirmation of their actions
 
 **User benefit:**
-- Seamless autocomplete experience within ChatGPT
-- No need to manually copy/paste prompts
-- Keyboard navigation works naturally in the chat interface
+- Clear feedback when operations succeed or fail
+- Better user experience with visual confirmations
+- No guessing whether actions were completed successfully
 
 **Privacy impact:**
-- ✅ Only accesses tabs when user explicitly interacts with extension
-- ✅ No background monitoring or data collection
-- ✅ Temporary access that ends when tab is closed
-- ✅ Cannot access other tabs or browser data
+- ✅ Only shows notifications for user-initiated actions
+- ✅ No background monitoring or unsolicited notifications
+- ✅ Notifications are temporary and user-controlled
+- ✅ Cannot access any user data or browsing history
 
 ---
 
-### 3. Host Permissions: `https://chatgpt.com/*` and `https://chat.openai.com/*`
+### 3. Host Permissions via Content Scripts
 
-**What it does:** Allows content scripts to run on ChatGPT's official websites.
+**What it does:** Allows content scripts to run on AI platform websites to provide autocomplete functionality.
 
 **Why we need it:**
-- **Core functionality:** Extension's primary purpose is to enhance ChatGPT experience
-- **Official domains only:** Limited to legitimate ChatGPT interfaces
-- **Content script injection:** Enables autocomplete overlay and keyboard shortcuts
+- **Multi-platform support:** Extension works across ChatGPT, Claude, and Gemini
+- **Core functionality:** Enables autocomplete overlay and keyboard shortcuts on all supported platforms
 - **Real-time interaction:** Responds to user typing and provides instant suggestions
+- **Seamless integration:** Maintains native look and feel of each platform
+
+**Supported platforms:**
+- `https://chatgpt.com/*` and `https://chat.openai.com/*` - ChatGPT
+- `https://claude.ai/*` - Claude AI
+- `https://gemini.google.com/*` and `https://aistudio.google.com/*` - Google Gemini
 
 **User benefit:**
-- Works seamlessly within ChatGPT's interface
+- Works seamlessly across multiple AI platforms
 - No need to switch between windows or copy/paste
-- Maintains ChatGPT's native look and feel
+- Consistent experience regardless of which AI platform is being used
 
 **Privacy impact:**
-- ✅ Limited to ChatGPT domains only
+- ✅ Limited to official AI platform domains only
 - ✅ No access to other websites or user data
-- ✅ Cannot read or modify ChatGPT conversations
-- ✅ Only enhances the input experience
+- ✅ Cannot read or modify AI conversations
+- ✅ Only enhances the input experience on supported platforms
 
 ---
 
@@ -76,8 +81,8 @@
 | Permission | Purpose | Privacy Impact | User Benefit |
 |------------|---------|----------------|--------------|
 | `storage` | Save user's custom prompts | Local storage only | Persistent prompts across sessions |
-| `activeTab` | Inject autocomplete into ChatGPT | Temporary, user-triggered | Seamless integration |
-| Host permissions | Run on ChatGPT domains | Limited to ChatGPT only | Core functionality |
+| `notifications` | Provide user feedback | Temporary notifications only | Clear operation confirmations |
+| Host permissions | Run on AI platform domains | Limited to AI platforms only | Multi-platform functionality |
 
 ## Security & Privacy Commitments
 
