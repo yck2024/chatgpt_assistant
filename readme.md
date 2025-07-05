@@ -9,6 +9,7 @@ A Chrome extension that adds custom prompt shortcuts to ChatGPT, Claude, and Gem
 - **Autocomplete**: Filter prompts as you type (e.g., `//r` shows prompts starting with "r")
 - **Easy Management**: Add, edit, and delete prompts through a user-friendly interface
 - **Export/Import**: Export your prompts as JSON and import prompts from JSON files
+- **Google Drive Sync**: Backup and sync your prompts to Google Drive for cross-device access
 - **Keyboard Navigation**: Use arrow keys to navigate and Enter/Tab to select
 - **Dark Mode Support**: Automatically adapts to your system's theme
 - **Cross-Platform Sync**: Your prompts work across all supported AI platforms
@@ -33,6 +34,8 @@ Make sure your extension folder contains these files:
 - `options.js`
 - `popup.html`
 - `popup.js`
+- `background.js`
+- `google-drive-service.js` (for Google Drive sync)
 
 ## Usage
 
@@ -71,6 +74,18 @@ You can export your prompts as a JSON file and import prompts from JSON files:
 - **Conflict Resolution**: If imported prompts conflict with existing ones, you'll be asked to confirm overwriting
 - **Backup**: Use export to create backups of your prompt collection
 - **Sharing**: Share your prompt collections with others by exporting and sharing the JSON file
+
+### Google Drive Sync
+
+Sync your prompts to Google Drive for secure backup and cross-device access:
+
+- **Connect**: Click "Connect to Google Drive" in the settings page
+- **Upload**: Save your current prompts to Google Drive
+- **Download**: Restore prompts from Google Drive to your local storage
+- **Automatic Backup**: Your prompts are stored in a private file in your Google Drive
+- **Cross-Device**: Access your prompts from any device with the extension installed
+
+**Setup Required**: Before using Google Drive sync, you need to configure OAuth2 credentials. See the [Google OAuth2 Setup Guide](google-oauth-setup-guide.md) for detailed instructions.
 
 The JSON format includes:
 ```json
@@ -139,18 +154,42 @@ Here are some useful prompts to get you started:
 - **Claude**: Optimized for Claude's interface elements
 - **Gemini**: Compatible with Gemini's input system
 
+### Google Drive Sync Issues
+- Check the [OAuth2 Troubleshooting Guide](oauth2-troubleshooting.md) for setup issues
+- Use the built-in test tools in the extension options page
+- Verify your Google Cloud Console configuration
+- Make sure you're using the correct extension ID in OAuth2 credentials
+
+## Testing
+
+### Testing Google Drive Integration
+To test the Google Drive functionality:
+
+1. Open the extension options page (chrome://extensions/ → Find extension → Options)
+2. Scroll to the "Google Drive Sync" section
+3. Click "OAuth Debug Tool" to test OAuth2 configuration
+4. Click "Google Drive Test" to test full integration
+
+**Note**: Do not open the test HTML files directly in the browser. They must be opened through the extension context to work properly.
+
+For detailed testing instructions, see [How to Test Google Drive Integration](how-to-test-google-drive.md).
+
 ## Development
 
 ### File Structure
 ```
-├── manifest.json          # Extension manifest
-├── content.js             # Main functionality script
-├── content.css            # Autocomplete styling
-├── options.html           # Settings page
-├── options.js             # Settings functionality
-├── popup.html             # Extension popup
-├── popup.js               # Popup functionality
-└── README.md              # This file
+├── manifest.json              # Extension manifest
+├── content.js                 # Main functionality script
+├── content.css                # Autocomplete styling
+├── options.html               # Settings page
+├── options.js                 # Settings functionality
+├── popup.html                 # Extension popup
+├── popup.js                   # Popup functionality
+├── background.js              # Background service worker
+├── google-drive-service.js    # Google Drive API integration
+├── google-oauth-setup-guide.md # OAuth2 setup instructions
+├── test-google-drive.html     # Testing page for Google Drive
+└── README.md                  # This file
 ```
 
 ### Key Components
@@ -158,6 +197,8 @@ Here are some useful prompts to get you started:
 - **Platform Detection**: Automatically identifies and adapts to different AI platforms
 - **Options Page**: Manages prompt storage and editing
 - **Popup**: Quick access and status display
+- **Background Service Worker**: Handles Google Drive operations and message routing
+- **Google Drive Service**: Manages OAuth2 authentication and Drive API operations
 - **Storage**: Chrome sync storage for cross-device syncing
 
 ## Contributing

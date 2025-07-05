@@ -3,6 +3,12 @@ class PromptManager {
   constructor() {
     this.prompts = {};
     this.editingKey = null;
+            this.googleDriveStatus = {
+          authenticated: false,
+          configured: true,
+          fileId: null,
+          metadata: null
+        };
     
     this.init();
   }
@@ -11,6 +17,7 @@ class PromptManager {
     await this.loadPrompts();
     this.setupEventListeners();
     this.renderPrompts();
+    await this.initGoogleDrive();
   }
 
   async loadPrompts() {
@@ -133,6 +140,36 @@ class PromptManager {
           this.closeEditModal();
         }
       }
+    });
+
+    // Google Drive event listeners
+    document.getElementById('google-drive-auth-btn').addEventListener('click', () => {
+      this.handleGoogleDriveAuth();
+    });
+
+    document.getElementById('google-drive-upload-btn').addEventListener('click', () => {
+      this.handleGoogleDriveUpload();
+    });
+
+    document.getElementById('google-drive-download-btn').addEventListener('click', () => {
+      this.handleGoogleDriveDownload();
+    });
+
+    document.getElementById('google-drive-disconnect-btn').addEventListener('click', () => {
+      this.handleGoogleDriveDisconnect();
+    });
+
+    // Troubleshooting event listeners
+    document.getElementById('debug-oauth-btn').addEventListener('click', () => {
+      this.openDebugOAuth();
+    });
+
+    document.getElementById('test-drive-btn').addEventListener('click', () => {
+      this.openTestDrive();
+    });
+
+    document.getElementById('debug-oauth2-config-btn').addEventListener('click', () => {
+      this.debugOAuth2Config();
     });
   }
 
@@ -422,6 +459,272 @@ class PromptManager {
     setTimeout(() => {
       errorDiv.style.display = 'none';
     }, 5000);
+  }
+
+  // Google Drive Methods
+  async initGoogleDrive() {
+    try {
+      await this.updateGoogleDriveStatus();
+    } catch (error) {
+      console.error('[Options] Google Drive init error:', error);
+    }
+  }
+
+  async updateGoogleDriveStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'googleDriveGetStatus' });
+      
+      if (response.success) {
+        this.googleDriveStatus = {
+          authenticated: response.authenticated,
+          configured: response.configured,
+          fileId: response.fileId,
+          metadata: response.metadata
+        };
+        this.updateGoogleDriveUI();
+      } else {
+        console.error('[Options] Google Drive status error:', response.error);
+        this.googleDriveStatus = {
+          authenticated: false,
+          configured: false,
+          fileId: null,
+          metadata: null
+        };
+        this.updateGoogleDriveUI();
+      }
+    } catch (error) {
+      console.error('[Options] Google Drive status error:', error);
+      this.googleDriveStatus = {
+        authenticated: false,
+        configured: false,
+        fileId: null,
+        metadata: null
+      };
+      this.updateGoogleDriveUI();
+    }
+  }
+
+  updateGoogleDriveUI() {
+    const authStatus = document.getElementById('auth-status');
+    const statusText = document.getElementById('status-text');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const lastUpdated = document.getElementById('last-updated');
+    
+    const authBtn = document.getElementById('google-drive-auth-btn');
+    const uploadBtn = document.getElementById('google-drive-upload-btn');
+    const downloadBtn = document.getElementById('google-drive-download-btn');
+    const disconnectBtn = document.getElementById('google-drive-disconnect-btn');
+
+    if (!this.googleDriveStatus.configured) {
+      // Not configured state
+      authStatus.style.background = '#f59e0b';
+      statusText.textContent = 'OAuth2 not configured. Please check setup guide.';
+      fileInfo.style.display = 'none';
+
+      authBtn.style.display = 'none';
+      uploadBtn.style.display = 'none';
+      downloadBtn.style.display = 'none';
+      disconnectBtn.style.display = 'none';
+    } else if (this.googleDriveStatus.authenticated) {
+      // Connected state
+      authStatus.style.background = '#10b981';
+      statusText.textContent = 'Connected to Google Drive';
+      
+      if (this.googleDriveStatus.metadata) {
+        fileInfo.style.display = 'block';
+        fileName.textContent = this.googleDriveStatus.metadata.name;
+        const modifiedTime = new Date(this.googleDriveStatus.metadata.modifiedTime);
+        lastUpdated.textContent = modifiedTime.toLocaleString();
+      } else {
+        fileInfo.style.display = 'none';
+      }
+
+      authBtn.style.display = 'none';
+      uploadBtn.style.display = 'inline-block';
+      downloadBtn.style.display = 'inline-block';
+      disconnectBtn.style.display = 'inline-block';
+    } else {
+      // Not connected state
+      authStatus.style.background = '#d1d5db';
+      statusText.textContent = 'Not connected to Google Drive';
+      fileInfo.style.display = 'none';
+
+      authBtn.style.display = 'inline-block';
+      uploadBtn.style.display = 'none';
+      downloadBtn.style.display = 'none';
+      disconnectBtn.style.display = 'none';
+    }
+  }
+
+  async handleGoogleDriveAuth() {
+    try {
+      const authBtn = document.getElementById('google-drive-auth-btn');
+      authBtn.disabled = true;
+      authBtn.textContent = 'Connecting...';
+
+      const response = await chrome.runtime.sendMessage({ action: 'googleDriveAuth' });
+      
+      if (response.success) {
+        await this.updateGoogleDriveStatus();
+        this.showSuccess('Successfully connected to Google Drive!');
+      } else {
+        this.showError('Failed to connect to Google Drive: ' + response.error);
+      }
+    } catch (error) {
+      this.showError('Failed to connect to Google Drive: ' + error.message);
+    } finally {
+      const authBtn = document.getElementById('google-drive-auth-btn');
+      authBtn.disabled = false;
+      authBtn.textContent = 'Connect to Google Drive';
+    }
+  }
+
+  async handleGoogleDriveUpload() {
+    try {
+      const uploadBtn = document.getElementById('google-drive-upload-btn');
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading...';
+
+      const response = await chrome.runtime.sendMessage({ 
+        action: 'googleDriveUpload', 
+        prompts: this.prompts 
+      });
+      
+      if (response.success) {
+        await this.updateGoogleDriveStatus();
+        this.showSuccess('Prompts uploaded to Google Drive successfully!');
+      } else {
+        this.showError('Failed to upload prompts: ' + response.error);
+      }
+    } catch (error) {
+      this.showError('Failed to upload prompts: ' + error.message);
+    } finally {
+      const uploadBtn = document.getElementById('google-drive-upload-btn');
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload to Drive';
+    }
+  }
+
+  async handleGoogleDriveDownload() {
+    try {
+      const downloadBtn = document.getElementById('google-drive-download-btn');
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = 'Downloading...';
+
+      const response = await chrome.runtime.sendMessage({ action: 'googleDriveDownload' });
+      
+      if (response.success) {
+        // Check for conflicts with existing prompts
+        const downloadedPrompts = response.prompts;
+        const promptKeys = Object.keys(downloadedPrompts);
+        const conflicts = promptKeys.filter(key => this.prompts[key]);
+        
+        if (conflicts.length > 0) {
+          const shouldOverwrite = confirm(
+            `The following prompts already exist and will be overwritten:\n${conflicts.map(key => `//${key}`).join(', ')}\n\nDo you want to continue?`
+          );
+          
+          if (!shouldOverwrite) {
+            return;
+          }
+        }
+
+        // Merge downloaded prompts with existing ones
+        Object.assign(this.prompts, downloadedPrompts);
+        await this.savePrompts();
+        await this.renderPrompts();
+        await this.updateGoogleDriveStatus();
+        
+        this.showSuccess(`Successfully downloaded ${promptKeys.length} prompt(s) from Google Drive!`);
+      } else {
+        this.showError('Failed to download prompts: ' + response.error);
+      }
+    } catch (error) {
+      this.showError('Failed to download prompts: ' + error.message);
+    } finally {
+      const downloadBtn = document.getElementById('google-drive-download-btn');
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = 'Download from Drive';
+    }
+  }
+
+  async handleGoogleDriveDisconnect() {
+    try {
+      const shouldDisconnect = confirm(
+        'Are you sure you want to disconnect from Google Drive? This will remove the connection but keep your local prompts.'
+      );
+      
+      if (!shouldDisconnect) {
+        return;
+      }
+
+      const disconnectBtn = document.getElementById('google-drive-disconnect-btn');
+      disconnectBtn.disabled = true;
+      disconnectBtn.textContent = 'Disconnecting...';
+
+      console.log('[Options] Sending disconnect request...');
+      const response = await chrome.runtime.sendMessage({ action: 'googleDriveDisconnect' });
+      console.log('[Options] Disconnect response:', response);
+      
+      if (response.success) {
+        this.googleDriveStatus = {
+          authenticated: false,
+          configured: true,
+          fileId: null,
+          metadata: null
+        };
+        this.updateGoogleDriveUI();
+        this.showSuccess(`Successfully disconnected from Google Drive! (Was: ${response.wasAuthenticated}, Now: ${response.isAuthenticated})`);
+      } else {
+        this.showError('Failed to disconnect: ' + response.error);
+      }
+    } catch (error) {
+      console.error('[Options] Disconnect error:', error);
+      this.showError('Failed to disconnect: ' + error.message);
+    } finally {
+      const disconnectBtn = document.getElementById('google-drive-disconnect-btn');
+      disconnectBtn.disabled = false;
+      disconnectBtn.textContent = 'Disconnect';
+    }
+  }
+
+  // Open OAuth debug tool
+  openDebugOAuth() {
+    const url = chrome.runtime.getURL('debug-oauth.html');
+    chrome.tabs.create({ url });
+  }
+
+  // Open Google Drive test tool
+  openTestDrive() {
+    const url = chrome.runtime.getURL('test-google-drive.html');
+    chrome.tabs.create({ url });
+  }
+
+  // Debug OAuth2 configuration
+  async debugOAuth2Config() {
+    try {
+      console.log('[Options] Debugging OAuth2 configuration...');
+      const response = await chrome.runtime.sendMessage({ action: 'debugOAuth2Config' });
+      console.log('[Options] Debug response:', response);
+      
+      if (response.success) {
+        const message = `
+OAuth2 Configuration Debug:
+- Service exists: ${response.serviceExists}
+- Client ID: ${response.clientId}
+- Is configured: ${response.isConfigured}
+        `.trim();
+        
+        this.showSuccess(message);
+        console.log('[Options] Debug info:', message);
+      } else {
+        this.showError('Failed to debug OAuth2 configuration: ' + response.error);
+      }
+    } catch (error) {
+      console.error('[Options] Debug error:', error);
+      this.showError('Failed to debug OAuth2 configuration: ' + error.message);
+    }
   }
 }
 

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Test - AI Prompt Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .test-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 4px;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        .status {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .status.info { background: #dbeafe; color: #1e40af; }
+        pre {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Google Drive Integration Test</h1>
+        <p>This page tests the Google Drive integration for the AI Prompt Assistant extension.</p>
+        <div class="status info" style="margin-bottom: 20px;">
+            <strong>Note:</strong> This page must be opened from within the extension context. If you're seeing "Extension not available" errors, 
+            please open this page through the extension options page instead of directly.
+        </div>
+
+        <div class="test-section">
+            <h3>1. Check Extension Status</h3>
+            <button class="btn btn-primary" id="check-extension-btn">Check Extension</button>
+            <div id="extension-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Google Drive Authentication</h3>
+            <button class="btn btn-primary" id="test-auth-btn">Test Authentication</button>
+            <button class="btn btn-secondary" id="check-auth-btn">Check Auth Status</button>
+            <div id="auth-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. File Operations</h3>
+            <button class="btn btn-primary" id="test-upload-btn">Test Upload</button>
+            <button class="btn btn-secondary" id="test-download-btn">Test Download</button>
+            <button class="btn btn-danger" id="test-disconnect-btn">Disconnect</button>
+            <div id="file-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Test Data</h3>
+            <textarea id="test-prompts" rows="6" style="width: 100%; margin-bottom: 12px;">{
+  "testPrompt1": "This is a test prompt for Google Drive sync",
+  "testPrompt2": "Another test prompt to verify functionality",
+  "testPrompt3": "Third test prompt for comprehensive testing"
+}</textarea>
+            <button class="btn btn-primary" id="upload-test-data-btn">Upload Test Data</button>
+        </div>
+    </div>
+
+    <script src="google-drive-service.js"></script>
+    <script src="test-google-drive.js"></script>
+</body>
+</html> 

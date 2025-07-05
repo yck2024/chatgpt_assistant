@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 Debug - AI Prompt Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .debug-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 4px;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .status {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .status.info { background: #dbeafe; color: #1e40af; }
+        .status.warning { background: #fef3c7; color: #92400e; }
+        pre {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .checklist {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+        .checklist h4 {
+            margin-top: 0;
+            color: #374151;
+        }
+        .checklist ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .checklist li {
+            margin: 4px 0;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OAuth2 Configuration Debug</h1>
+        <p>This page helps diagnose OAuth2 configuration issues with your Chrome extension.</p>
+        <div class="status info" style="margin-bottom: 20px;">
+            <strong>Note:</strong> This page must be opened from within the extension context. If you're seeing "Extension not available" errors, 
+            please open this page through the extension options page instead of directly.
+        </div>
+
+        <div class="debug-section">
+            <h3>1. Extension Information</h3>
+            <button class="btn btn-primary" id="get-extension-info-btn">Get Extension Info</button>
+            <div id="extension-info"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>2. OAuth2 Configuration Check</h3>
+            <button class="btn btn-primary" id="test-oauth-config-btn">Test OAuth2 Config</button>
+            <button class="btn btn-secondary" id="show-checklist-btn">Show Setup Checklist</button>
+            <div id="oauth-config"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>3. Detailed Error Test</h3>
+            <button class="btn btn-primary" id="test-detailed-auth-btn">Test Detailed Auth</button>
+            <div id="detailed-test"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>4. Manual Token Test</h3>
+            <button class="btn btn-primary" id="test-manual-token-btn">Test Manual Token</button>
+            <div id="manual-test"></div>
+        </div>
+    </div>
+
+    <script src="debug-oauth.js"></script>
+</body>
+</html> 

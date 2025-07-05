@@ -21,6 +21,8 @@ class PromptAssistant {
       return 'claude';
     } else if (hostname.includes('gemini.google.com') || hostname.includes('aistudio.google.com')) {
       return 'gemini';
+    } else if (hostname.includes('duckduckgo.com')) {
+      return 'duckduckgo';
     }
     return 'unknown';
   }
@@ -112,6 +114,11 @@ class PromptAssistant {
           '[contenteditable="true"]',
           'textarea[placeholder*="Message"]',
           'textarea[placeholder*="Ask"]',
+          'textarea'
+        ];
+      case 'duckduckgo':
+        return [
+          'textarea[name="user-prompt"]',
           'textarea'
         ];
       default:

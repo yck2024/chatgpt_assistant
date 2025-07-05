@@ -1,6 +1,12 @@
 // AI Prompt Assistant - Background Script
 // Handles extension installation and automatic sample prompt import
 
+// Import Google Drive service
+importScripts('google-drive-service.js');
+
+// Initialize Google Drive service
+let googleDriveService = new GoogleDriveService();
+
 // Handle extension installation or update
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install' || details.reason === 'update') {
@@ -9,6 +15,223 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.runtime.openOptionsPage();
   }
 });
+
+// Handle messages from content scripts and options page
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'googleDriveAuth') {
+    handleGoogleDriveAuth().then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Keep message channel open for async response
+  }
+  
+  if (request.action === 'googleDriveUpload') {
+    handleGoogleDriveUpload(request.prompts).then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'googleDriveDownload') {
+    handleGoogleDriveDownload().then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'googleDriveGetStatus') {
+    handleGoogleDriveStatus().then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'googleDriveDisconnect') {
+    handleGoogleDriveDisconnect().then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'debugOAuth2Config') {
+    console.log('[Background] Debug OAuth2 configuration...');
+    console.log('[Background] GoogleDriveService instance:', googleDriveService);
+    console.log('[Background] Client ID:', googleDriveService?.clientId);
+    console.log('[Background] Is configured:', googleDriveService?.isOAuth2Configured());
+    sendResponse({ 
+      success: true, 
+      clientId: googleDriveService?.clientId,
+      isConfigured: googleDriveService?.isOAuth2Configured(),
+      serviceExists: !!googleDriveService
+    });
+    return true;
+  }
+});
+
+// Handle Google Drive authentication
+async function handleGoogleDriveAuth() {
+  try {
+    console.log('[Background] Starting Google Drive authentication...');
+    console.log('[Background] GoogleDriveService instance:', googleDriveService);
+    console.log('[Background] Client ID:', googleDriveService.clientId);
+    
+    // Check if OAuth2 is properly configured
+    const isConfigured = googleDriveService.isOAuth2Configured();
+    console.log('[Background] OAuth2 configured:', isConfigured);
+    
+    if (!isConfigured) {
+      return { 
+        success: false, 
+        error: 'OAuth2 not configured. Please check your client ID in google-drive-service.js and manifest.json' 
+      };
+    }
+
+    await googleDriveService.init();
+    const isAuth = await googleDriveService.isAuthenticated();
+    
+    if (!isAuth) {
+      await googleDriveService.authenticate();
+    }
+    
+    return { success: true, authenticated: true };
+  } catch (error) {
+    console.error('[Background] Google Drive auth error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle Google Drive upload
+async function handleGoogleDriveUpload(prompts) {
+  try {
+    // Check if OAuth2 is properly configured
+    if (!googleDriveService.isOAuth2Configured()) {
+      return { 
+        success: false, 
+        error: 'OAuth2 not configured. Please check your client ID in google-drive-service.js and manifest.json' 
+      };
+    }
+
+    await googleDriveService.init();
+    const isAuth = await googleDriveService.isAuthenticated();
+    
+    if (!isAuth) {
+      throw new Error('Not authenticated. Please authenticate first.');
+    }
+    
+    await googleDriveService.uploadPrompts(prompts);
+    return { success: true };
+  } catch (error) {
+    console.error('[Background] Google Drive upload error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle Google Drive download
+async function handleGoogleDriveDownload() {
+  try {
+    console.log('[Background] Starting Google Drive download...');
+    
+    // Check if OAuth2 is properly configured
+    if (!googleDriveService.isOAuth2Configured()) {
+      console.log('[Background] OAuth2 not configured');
+      return { 
+        success: false, 
+        error: 'OAuth2 not configured. Please check your client ID in google-drive-service.js and manifest.json' 
+      };
+    }
+
+    console.log('[Background] OAuth2 is configured, initializing service...');
+    await googleDriveService.init();
+    console.log('[Background] Service initialized');
+    
+    const isAuth = await googleDriveService.isAuthenticated();
+    console.log('[Background] Authentication status:', isAuth);
+    
+    if (!isAuth) {
+      throw new Error('Not authenticated. Please authenticate first.');
+    }
+    
+    console.log('[Background] Authenticated, downloading prompts...');
+    const prompts = await googleDriveService.downloadPrompts();
+    console.log('[Background] Download completed successfully');
+    return { success: true, prompts };
+  } catch (error) {
+    console.error('[Background] Google Drive download error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle Google Drive status check
+async function handleGoogleDriveStatus() {
+  try {
+    // Check if OAuth2 is properly configured
+    if (!googleDriveService.isOAuth2Configured()) {
+      return { 
+        success: true, 
+        authenticated: false, 
+        configured: false,
+        fileId: null 
+      };
+    }
+
+    await googleDriveService.init();
+    const isAuth = await googleDriveService.isAuthenticated();
+    
+    if (!isAuth) {
+      return { success: true, authenticated: false, configured: true, fileId: null };
+    }
+    
+    const metadata = await googleDriveService.getFileMetadata();
+    return { 
+      success: true, 
+      authenticated: true, 
+      configured: true,
+      fileId: googleDriveService.fileId,
+      metadata 
+    };
+  } catch (error) {
+    console.error('[Background] Google Drive status error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle Google Drive disconnect
+async function handleGoogleDriveDisconnect() {
+  try {
+    console.log('[Background] Starting Google Drive disconnect process...');
+    console.log('[Background] Current GoogleDriveService instance:', googleDriveService);
+    console.log('[Background] Current client ID:', googleDriveService?.clientId);
+    
+    // Initialize the service if not already done
+    if (!googleDriveService) {
+      console.log('[Background] Creating new GoogleDriveService instance...');
+      googleDriveService = new GoogleDriveService();
+    }
+    
+    await googleDriveService.init();
+    console.log('[Background] GoogleDriveService initialized');
+    console.log('[Background] Client ID after init:', googleDriveService.clientId);
+    
+    // Check authentication status before disconnect
+    const wasAuthenticated = await googleDriveService.isAuthenticated();
+    console.log('[Background] Authentication status before disconnect:', wasAuthenticated);
+    
+    // Clear all authentication and file data
+    await googleDriveService.clearAllData();
+    console.log('[Background] All data cleared');
+    console.log('[Background] Client ID after clear:', googleDriveService.clientId);
+    
+    // Verify disconnect worked
+    const isAuthenticated = await googleDriveService.isAuthenticated();
+    console.log('[Background] Authentication status after disconnect:', isAuthenticated);
+    
+    console.log('[Background] Google Drive disconnected successfully');
+    return { success: true, wasAuthenticated, isAuthenticated };
+  } catch (error) {
+    console.error('[Background] Google Drive disconnect error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // Import and merge sample prompts
 async function importAndMergeSamplePrompts(reason) {
@@ -77,4 +300,4 @@ async function importAndMergeSamplePrompts(reason) {
   } catch (error) {
     console.error('[PromptAssistant] Failed to merge and save prompts:', error);
   }
-} 
+}
