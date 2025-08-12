@@ -99,6 +99,22 @@ class PromptManager {
     // Auto-focus key input
     document.getElementById('prompt-key').focus();
 
+    // Conflict resolution event listeners
+    document.getElementById('conflict-cancel-btn').addEventListener('click', () => {
+      this.hideConflictResolutionModal();
+    });
+
+    document.getElementById('conflict-resolve-btn').addEventListener('click', () => {
+      this.resolveConflicts();
+    });
+
+    // Close modal on background click
+    document.getElementById('conflict-resolution-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'conflict-resolution-modal') {
+        this.hideConflictResolutionModal();
+      }
+    });
+
     // Event delegation for Edit/Delete buttons
     document.getElementById('prompts-container').addEventListener('click', (e) => {
       const editBtn = e.target.closest('.btn-secondary');
@@ -584,7 +600,7 @@ class PromptManager {
     try {
       const uploadBtn = document.getElementById('google-drive-upload-btn');
       uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Uploading...';
+      uploadBtn.textContent = 'Checking for conflicts...';
 
       const response = await chrome.runtime.sendMessage({ 
         action: 'googleDriveUpload', 
@@ -593,7 +609,17 @@ class PromptManager {
       
       if (response.success) {
         await this.updateGoogleDriveStatus();
-        this.showSuccess('Prompts uploaded to Google Drive successfully!');
+        if (response.autoMerged) {
+          this.showSuccess('Prompts uploaded successfully! New prompts from Google Drive were automatically merged.');
+          // Reload prompts to show merged data
+          await this.loadPrompts();
+          this.renderPrompts();
+        } else {
+          this.showSuccess('Prompts uploaded to Google Drive successfully!');
+        }
+      } else if (response.hasConflicts) {
+        // Show conflict resolution modal
+        this.showConflictResolutionModal(response.conflicts, response.remotePrompts, response.localPrompts);
       } else {
         this.showError('Failed to upload prompts: ' + response.error);
       }
@@ -725,6 +751,185 @@ OAuth2 Configuration Debug:
       console.error('[Options] Debug error:', error);
       this.showError('Failed to debug OAuth2 configuration: ' + error.message);
     }
+  }
+
+  // Show conflict resolution modal
+  showConflictResolutionModal(conflicts, remotePrompts, localPrompts) {
+    this.conflictData = {
+      conflicts,
+      remotePrompts,
+      localPrompts,
+      resolutions: {}
+    };
+
+    const modal = document.getElementById('conflict-resolution-modal');
+    const conflictList = document.getElementById('conflict-list');
+    
+    // Clear previous content
+    conflictList.innerHTML = '';
+    
+    // Render each conflict
+    conflicts.modified.forEach((conflict, index) => {
+      const conflictElement = this.createConflictElement(conflict, index);
+      conflictList.appendChild(conflictElement);
+    });
+
+    modal.style.display = 'block';
+  }
+
+  // Create conflict element with diff viewer and resolution options
+  createConflictElement(conflict, index) {
+    const div = document.createElement('div');
+    div.className = 'conflict-item';
+    div.innerHTML = `
+      <div class="conflict-header">
+        <div class="conflict-key">Prompt Key: "${conflict.key}"</div>
+      </div>
+      <div class="conflict-content">
+        <div class="conflict-versions">
+          <div class="version-section">
+            <div class="version-header">
+              📱 Your Local Version
+            </div>
+            <div class="version-content">${this.escapeHtml(conflict.local)}</div>
+          </div>
+          <div class="version-section">
+            <div class="version-header">
+              ☁️ Google Drive Version
+            </div>
+            <div class="version-content">${this.escapeHtml(conflict.remote)}</div>
+          </div>
+        </div>
+        <div class="conflict-resolution">
+          <div class="resolution-options">
+            <label class="resolution-radio" data-conflict="${index}" data-resolution="local">
+              <input type="radio" name="conflict_${index}" value="local" />
+              Keep Local Version
+            </label>
+            <label class="resolution-radio" data-conflict="${index}" data-resolution="remote">
+              <input type="radio" name="conflict_${index}" value="remote" />
+              Keep Google Drive Version
+            </label>
+            <label class="resolution-radio" data-conflict="${index}" data-resolution="both">
+              <input type="radio" name="conflict_${index}" value="both" />
+              Keep Both (rename with suffix)
+            </label>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add event listeners for radio buttons
+    div.addEventListener('change', (e) => {
+      if (e.target.type === 'radio') {
+        const conflictIndex = e.target.closest('.resolution-radio').dataset.conflict;
+        const resolution = e.target.closest('.resolution-radio').dataset.resolution;
+        this.conflictData.resolutions[conflictIndex] = resolution;
+        
+        // Update visual selection
+        div.querySelectorAll('.resolution-radio').forEach(radio => {
+          radio.classList.remove('selected');
+        });
+        e.target.closest('.resolution-radio').classList.add('selected');
+        
+        // Enable resolve button if all conflicts have resolutions
+        this.updateResolveButtonState();
+      }
+    });
+
+    return div;
+  }
+
+  // Hide conflict resolution modal
+  hideConflictResolutionModal() {
+    document.getElementById('conflict-resolution-modal').style.display = 'none';
+    this.conflictData = null;
+  }
+
+  // Update resolve button state based on conflict resolutions
+  updateResolveButtonState() {
+    const resolveBtn = document.getElementById('conflict-resolve-btn');
+    const totalConflicts = this.conflictData.conflicts.modified.length;
+    const resolvedConflicts = Object.keys(this.conflictData.resolutions).length;
+    
+    resolveBtn.disabled = resolvedConflicts < totalConflicts;
+  }
+
+  // Resolve conflicts and upload
+  async resolveConflicts() {
+    try {
+      const resolveBtn = document.getElementById('conflict-resolve-btn');
+      resolveBtn.disabled = true;
+      resolveBtn.textContent = 'Applying Resolution...';
+
+      // Build final prompts based on user choices
+      const finalPrompts = { ...this.conflictData.localPrompts };
+      
+      this.conflictData.conflicts.modified.forEach((conflict, index) => {
+        const resolution = this.conflictData.resolutions[index];
+        
+        switch (resolution) {
+          case 'local':
+            // Keep local version (already in finalPrompts)
+            break;
+          case 'remote':
+            // Use remote version
+            finalPrompts[conflict.key] = conflict.remote;
+            break;
+          case 'both':
+            // Keep both - local stays, add remote with suffix
+            const suffix = '_drive';
+            let newKey = conflict.key + suffix;
+            let counter = 1;
+            while (finalPrompts[newKey]) {
+              newKey = conflict.key + suffix + '_' + counter;
+              counter++;
+            }
+            finalPrompts[newKey] = conflict.remote;
+            break;
+        }
+      });
+
+      // Add any new prompts from remote that don't conflict
+      this.conflictData.conflicts.added.forEach(item => {
+        finalPrompts[item.key] = item.content;
+      });
+
+      // Force upload the resolved prompts
+      const response = await chrome.runtime.sendMessage({
+        action: 'googleDriveForceUpload',
+        prompts: finalPrompts
+      });
+
+      if (response.success) {
+        // Update local storage with resolved prompts
+        this.prompts = finalPrompts;
+        await this.savePrompts();
+        this.renderPrompts();
+        await this.updateGoogleDriveStatus();
+        
+        this.hideConflictResolutionModal();
+        this.showSuccess('Conflicts resolved and prompts uploaded successfully!');
+      } else {
+        this.showError('Failed to upload resolved prompts: ' + response.error);
+      }
+    } catch (error) {
+      this.showError('Failed to resolve conflicts: ' + error.message);
+    } finally {
+      const resolveBtn = document.getElementById('conflict-resolve-btn');
+      resolveBtn.disabled = false;
+      resolveBtn.textContent = 'Apply Resolution';
+    }
+  }
+
+  // Escape HTML for safe display
+  escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }
 

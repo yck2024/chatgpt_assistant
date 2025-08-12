@@ -236,38 +236,143 @@ class GoogleDriveService {
     return await response.json();
   }
 
-  // Upload prompts to Google Drive
+  // Upload prompts to Google Drive with conflict detection
   async uploadPrompts(prompts) {
     try {
-      const file = await this.findOrCreateFile();
-      const token = await this.getAuthToken();
+      console.log('[GoogleDrive] Starting upload with conflict detection...');
       
-      const content = JSON.stringify({
-        version: '1.0',
-        lastUpdated: new Date().toISOString(),
-        prompts: prompts
-      }, null, 2);
-
-      const url = `https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`;
-
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: content
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to upload prompts: ${response.status}`);
+      // Check for conflicts before uploading
+      const conflictResult = await this.detectConflicts(prompts);
+      
+      if (conflictResult.hasConflicts) {
+        // Return conflict data for UI to handle
+        return {
+          hasConflicts: true,
+          conflicts: conflictResult.conflicts,
+          remotePrompts: conflictResult.remotePrompts,
+          localPrompts: prompts
+        };
+      } else if (conflictResult.canAutoMerge) {
+        // Auto-merge safe conflicts and upload
+        console.log('[GoogleDrive] Auto-merging safe conflicts...');
+        return await this.performUpload(conflictResult.mergedPrompts);
+      } else {
+        // No conflicts, proceed with normal upload
+        return await this.performUpload(prompts);
       }
-
-      console.log('[GoogleDrive] Prompts uploaded successfully');
-      return await response.json();
     } catch (error) {
       console.error('[GoogleDrive] Upload error:', error);
       throw error;
+    }
+  }
+
+  // Perform the actual upload without conflict checking
+  async performUpload(prompts) {
+    const file = await this.findOrCreateFile();
+    const token = await this.getAuthToken();
+    
+    const content = JSON.stringify({
+      version: '1.0',
+      lastUpdated: new Date().toISOString(),
+      prompts: prompts
+    }, null, 2);
+
+    const url = `https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`;
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: content
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload prompts: ${response.status}`);
+    }
+
+    console.log('[GoogleDrive] Prompts uploaded successfully');
+    return { success: true, result: await response.json() };
+  }
+
+  // Force upload without conflict detection (used after user resolves conflicts)
+  async forceUpload(prompts) {
+    return await this.performUpload(prompts);
+  }
+
+  // Detect conflicts between local and remote prompts
+  async detectConflicts(localPrompts) {
+    try {
+      console.log('[GoogleDrive] Checking for conflicts...');
+      
+      // Download current version from Drive
+      const remoteData = await this.downloadPrompts();
+      const remotePrompts = remoteData.prompts || {};
+      
+      const conflicts = {
+        modified: [],    // Same key, different content - needs user decision
+        added: [],       // New in remote - can auto-merge
+        deleted: []      // Deleted locally but exists in remote - needs user decision
+      };
+
+      const localKeys = Object.keys(localPrompts);
+      const remoteKeys = Object.keys(remotePrompts);
+      
+      // Check for conflicts in existing keys
+      for (const key of localKeys) {
+        if (remotePrompts[key]) {
+          if (localPrompts[key] !== remotePrompts[key]) {
+            // Same key, different content - conflict!
+            conflicts.modified.push({
+              key,
+              local: localPrompts[key],
+              remote: remotePrompts[key]
+            });
+          }
+        }
+      }
+      
+      // Check for new prompts added remotely
+      for (const key of remoteKeys) {
+        if (!localPrompts[key]) {
+          conflicts.added.push({
+            key,
+            content: remotePrompts[key]
+          });
+        }
+      }
+
+      const hasConflicts = conflicts.modified.length > 0;
+      const canAutoMerge = conflicts.added.length > 0 && conflicts.modified.length === 0;
+      
+      let mergedPrompts = null;
+      if (canAutoMerge) {
+        // Auto-merge: combine local prompts with new remote prompts
+        mergedPrompts = { ...localPrompts };
+        conflicts.added.forEach(item => {
+          mergedPrompts[item.key] = item.content;
+        });
+      }
+
+      return {
+        hasConflicts,
+        canAutoMerge,
+        conflicts,
+        remotePrompts,
+        mergedPrompts
+      };
+      
+    } catch (error) {
+      // If we can't download (e.g., no file exists), no conflicts
+      console.log('[GoogleDrive] No remote file or download failed, proceeding without conflict check:', error.message);
+      return {
+        hasConflicts: false,
+        canAutoMerge: false,
+        conflicts: { modified: [], added: [], deleted: [] },
+        remotePrompts: {},
+        mergedPrompts: null
+      };
     }
   }
 

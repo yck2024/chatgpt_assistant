@@ -32,6 +32,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'googleDriveForceUpload') {
+    handleGoogleDriveForceUpload(request.prompts).then(sendResponse).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
   if (request.action === 'googleDriveDownload') {
     handleGoogleDriveDownload().then(sendResponse).catch(error => {
       sendResponse({ success: false, error: error.message });
@@ -100,7 +107,7 @@ async function handleGoogleDriveAuth() {
   }
 }
 
-// Handle Google Drive upload
+// Handle Google Drive upload with conflict detection
 async function handleGoogleDriveUpload(prompts) {
   try {
     // Check if OAuth2 is properly configured
@@ -118,10 +125,49 @@ async function handleGoogleDriveUpload(prompts) {
       throw new Error('Not authenticated. Please authenticate first.');
     }
     
-    await googleDriveService.uploadPrompts(prompts);
-    return { success: true };
+    const uploadResult = await googleDriveService.uploadPrompts(prompts);
+    
+    // Handle conflict detection results
+    if (uploadResult.hasConflicts) {
+      console.log('[Background] Conflicts detected, sending to UI for resolution');
+      return { 
+        success: false, 
+        hasConflicts: true,
+        conflicts: uploadResult.conflicts,
+        remotePrompts: uploadResult.remotePrompts,
+        localPrompts: uploadResult.localPrompts
+      };
+    }
+    
+    return { success: true, autoMerged: uploadResult.autoMerged || false };
   } catch (error) {
     console.error('[Background] Google Drive upload error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle force upload after conflict resolution
+async function handleGoogleDriveForceUpload(prompts) {
+  try {
+    // Check if OAuth2 is properly configured
+    if (!googleDriveService.isOAuth2Configured()) {
+      return { 
+        success: false, 
+        error: 'OAuth2 not configured. Please check your client ID in google-drive-service.js and manifest.json' 
+      };
+    }
+
+    await googleDriveService.init();
+    const isAuth = await googleDriveService.isAuthenticated();
+    
+    if (!isAuth) {
+      throw new Error('Not authenticated. Please authenticate first.');
+    }
+    
+    await googleDriveService.forceUpload(prompts);
+    return { success: true };
+  } catch (error) {
+    console.error('[Background] Google Drive force upload error:', error);
     return { success: false, error: error.message };
   }
 }

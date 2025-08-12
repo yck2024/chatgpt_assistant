@@ -106,3 +106,21 @@
 ✅ **User benefit** - All permissions provide clear value to users
 ✅ **Privacy focused** - No data collection or external transmission
 ✅ **Transparent** - Clear explanation of what each permission does 
+
+---
+
+### 4. `identity` Permission
+
+**What it does:** Allows the extension to request your Google identity to authenticate with Google Drive.
+
+**Why we need it:** This permission is essential for the **Google Drive Sync** feature, which lets you back up and sync your prompts to your personal Google Drive. It securely verifies your identity via Google's OAuth 2.0 system so the extension can save a file to your drive.
+
+**User benefit:**
+- **Securely back up** your prompts in your own Google Drive.
+- **Access your prompts** across different devices.
+- **You remain in control** and can revoke access at any time.
+
+**Privacy impact:**
+- ✅ The extension can **only** access the specific file it creates for prompts.
+- ✅ It **cannot** access any other files or folders in your Google Drive.
+- ✅ Authentication is handled by Google; your password is never seen or stored. 
