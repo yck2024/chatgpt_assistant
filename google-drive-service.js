@@ -246,7 +246,9 @@ class GoogleDriveService {
       
       if (conflictResult.hasConflicts) {
         // Return conflict data for UI to handle
+        console.log('[GoogleDrive] Conflicts detected, returning to UI for resolution');
         return {
+          success: false,
           hasConflicts: true,
           conflicts: conflictResult.conflicts,
           remotePrompts: conflictResult.remotePrompts,
@@ -255,10 +257,21 @@ class GoogleDriveService {
       } else if (conflictResult.canAutoMerge) {
         // Auto-merge safe conflicts and upload
         console.log('[GoogleDrive] Auto-merging safe conflicts...');
-        return await this.performUpload(conflictResult.mergedPrompts);
+        const uploadResult = await this.performUpload(conflictResult.mergedPrompts);
+        return {
+          success: true,
+          autoMerged: true,
+          result: uploadResult
+        };
       } else {
         // No conflicts, proceed with normal upload
-        return await this.performUpload(prompts);
+        console.log('[GoogleDrive] No conflicts, proceeding with normal upload');
+        const uploadResult = await this.performUpload(prompts);
+        return {
+          success: true,
+          autoMerged: false,
+          result: uploadResult
+        };
       }
     } catch (error) {
       console.error('[GoogleDrive] Upload error:', error);
@@ -293,22 +306,26 @@ class GoogleDriveService {
     }
 
     console.log('[GoogleDrive] Prompts uploaded successfully');
-    return { success: true, result: await response.json() };
+    return await response.json();
   }
 
   // Force upload without conflict detection (used after user resolves conflicts)
   async forceUpload(prompts) {
-    return await this.performUpload(prompts);
+    const result = await this.performUpload(prompts);
+    return { success: true, result };
   }
 
   // Detect conflicts between local and remote prompts
   async detectConflicts(localPrompts) {
     try {
       console.log('[GoogleDrive] Checking for conflicts...');
+      console.log('[GoogleDrive] Local prompts count:', Object.keys(localPrompts).length);
       
       // Download current version from Drive
       const remoteData = await this.downloadPrompts();
       const remotePrompts = remoteData.prompts || {};
+      
+      console.log('[GoogleDrive] Remote prompts count:', Object.keys(remotePrompts).length);
       
       const conflicts = {
         modified: [],    // Same key, different content - needs user decision
@@ -319,11 +336,15 @@ class GoogleDriveService {
       const localKeys = Object.keys(localPrompts);
       const remoteKeys = Object.keys(remotePrompts);
       
+      console.log('[GoogleDrive] Local keys:', localKeys);
+      console.log('[GoogleDrive] Remote keys:', remoteKeys);
+      
       // Check for conflicts in existing keys
       for (const key of localKeys) {
         if (remotePrompts[key]) {
           if (localPrompts[key] !== remotePrompts[key]) {
             // Same key, different content - conflict!
+            console.log(`[GoogleDrive] Conflict detected for key: ${key}`);
             conflicts.modified.push({
               key,
               local: localPrompts[key],
@@ -336,6 +357,7 @@ class GoogleDriveService {
       // Check for new prompts added remotely
       for (const key of remoteKeys) {
         if (!localPrompts[key]) {
+          console.log(`[GoogleDrive] New remote prompt found: ${key}`);
           conflicts.added.push({
             key,
             content: remotePrompts[key]
@@ -346,6 +368,13 @@ class GoogleDriveService {
       const hasConflicts = conflicts.modified.length > 0;
       const canAutoMerge = conflicts.added.length > 0 && conflicts.modified.length === 0;
       
+      console.log('[GoogleDrive] Conflict detection results:', {
+        hasConflicts,
+        canAutoMerge,
+        modifiedCount: conflicts.modified.length,
+        addedCount: conflicts.added.length
+      });
+      
       let mergedPrompts = null;
       if (canAutoMerge) {
         // Auto-merge: combine local prompts with new remote prompts
@@ -353,6 +382,7 @@ class GoogleDriveService {
         conflicts.added.forEach(item => {
           mergedPrompts[item.key] = item.content;
         });
+        console.log('[GoogleDrive] Auto-merge prepared, merged prompts count:', Object.keys(mergedPrompts).length);
       }
 
       return {

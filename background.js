@@ -128,7 +128,7 @@ async function handleGoogleDriveUpload(prompts) {
     const uploadResult = await googleDriveService.uploadPrompts(prompts);
     
     // Handle conflict detection results
-    if (uploadResult.hasConflicts) {
+    if (!uploadResult.success && uploadResult.hasConflicts) {
       console.log('[Background] Conflicts detected, sending to UI for resolution');
       return { 
         success: false, 
@@ -139,7 +139,15 @@ async function handleGoogleDriveUpload(prompts) {
       };
     }
     
-    return { success: true, autoMerged: uploadResult.autoMerged || false };
+    if (uploadResult.success) {
+      return { 
+        success: true, 
+        autoMerged: uploadResult.autoMerged || false 
+      };
+    }
+    
+    // Fallback for unexpected response
+    throw new Error('Unexpected upload result structure');
   } catch (error) {
     console.error('[Background] Google Drive upload error:', error);
     return { success: false, error: error.message };
