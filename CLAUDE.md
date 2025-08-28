@@ -50,6 +50,7 @@ The extension detects and adapts to different AI platforms:
 - Claude (claude.ai)
 - Gemini (gemini.google.com, aistudio.google.com)
 - DuckDuckGo (duckduckgo.com)
+- Microsoft Copilot (copilot.microsoft.com, m365.cloud.microsoft)
 
 Platform-specific selectors are used to identify input elements on each site.
 
@@ -81,6 +82,8 @@ Each AI platform has different DOM structures and input handling:
 - ChatGPT: Supports both contenteditable divs and textareas
 - Claude: Uses specific interface elements  
 - Gemini: Has unique input system
+- DuckDuckGo: Compatible with search interface
+- Microsoft Copilot: Works with both web and M365 interfaces
 - Content script adapts behavior based on detected platform
 
 ### OAuth2 Configuration

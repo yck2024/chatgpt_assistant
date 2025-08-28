@@ -1,10 +1,10 @@
 # AI Prompt Assistant
 
-A Chrome extension that adds custom prompt shortcuts to ChatGPT, Claude, and Gemini with autocomplete functionality.
+A Chrome extension that adds custom prompt shortcuts to ChatGPT, Claude, Gemini, DuckDuckGo, and Microsoft Copilot with autocomplete functionality.
 
 ## Features
 
-- **Multi-Platform Support**: Works with ChatGPT, Claude, and Gemini
+- **Multi-Platform Support**: Works with ChatGPT, Claude, Gemini, DuckDuckGo, and Microsoft Copilot
 - **Quick Prompt Access**: Type `//` followed by your shortcut to see available prompts
 - **Autocomplete**: Filter prompts as you type (e.g., `//r` shows prompts starting with "r")
 - **Easy Management**: Add, edit, and delete prompts through a user-friendly interface
@@ -52,6 +52,8 @@ Make sure your extension folder contains these files:
    - **ChatGPT**: chatgpt.com or chat.openai.com
    - **Claude**: claude.ai
    - **Gemini**: gemini.google.com or aistudio.google.com
+   - **DuckDuckGo**: duckduckgo.com
+   - **Microsoft Copilot**: copilot.microsoft.com or m365.cloud.microsoft
 2. Click in the message input box
 3. Type `//` to see all available prompts
 4. Continue typing to filter (e.g., `//rev` to find "reviseEnglish")
@@ -123,6 +125,8 @@ Here are some useful prompts to get you started:
 - **ChatGPT** (chatgpt.com, chat.openai.com)
 - **Claude** (claude.ai)
 - **Gemini** (gemini.google.com, aistudio.google.com)
+- **DuckDuckGo** (duckduckgo.com)
+- **Microsoft Copilot** (copilot.microsoft.com, m365.cloud.microsoft)
 
 ## Technical Details
 
@@ -135,7 +139,7 @@ Here are some useful prompts to get you started:
 ## Troubleshooting
 
 ### Autocomplete Not Showing
-- Make sure you're on a supported platform (ChatGPT, Claude, or Gemini)
+- Make sure you're on a supported platform (ChatGPT, Claude, Gemini, DuckDuckGo, or Microsoft Copilot)
 - Try refreshing the page
 - Check that the extension is enabled in chrome://extensions/
 
@@ -153,6 +157,8 @@ Here are some useful prompts to get you started:
 - **ChatGPT**: Works with both contenteditable and textarea inputs
 - **Claude**: Optimized for Claude's interface elements
 - **Gemini**: Compatible with Gemini's input system
+- **DuckDuckGo**: Compatible with search interface
+- **Microsoft Copilot**: Works with both web and M365 interfaces
 
 ### Google Drive Sync Issues
 - Check the [OAuth2 Troubleshooting Guide](oauth2-troubleshooting.md) for setup issues
