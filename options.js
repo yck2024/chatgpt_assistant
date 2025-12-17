@@ -3,12 +3,14 @@ class PromptManager {
   constructor() {
     this.prompts = {};
     this.editingKey = null;
-            this.googleDriveStatus = {
-          authenticated: false,
-          configured: true,
-          fileId: null,
-          metadata: null
-        };
+    this.googleDriveStatus = {
+      authenticated: false,
+      configured: true,
+      fileId: null,
+      metadata: null,
+      filePath: null,
+      account: null
+    };
     
     this.init();
   }
@@ -173,6 +175,12 @@ class PromptManager {
 
     document.getElementById('google-drive-disconnect-btn').addEventListener('click', () => {
       this.handleGoogleDriveDisconnect();
+    });
+
+    document.getElementById('drive-open-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = e.currentTarget.dataset.url;
+      if (url) chrome.tabs.create({ url });
     });
 
     // Troubleshooting event listeners
@@ -451,6 +459,23 @@ class PromptManager {
     return div.innerHTML;
   }
 
+  formatBytes(bytes) {
+    const size = Number(bytes);
+    if (!Number.isFinite(size) || size < 0) return 'Unknown';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = size;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex += 1;
+    }
+
+    const precision = unitIndex === 0 || value >= 10 ? 0 : 1;
+    return `${value.toFixed(precision)} ${units[unitIndex]}`;
+  }
+
   showSuccess(message) {
     const successDiv = document.getElementById('success-message');
     const errorDiv = document.getElementById('error-message');
@@ -495,7 +520,9 @@ class PromptManager {
           authenticated: response.authenticated,
           configured: response.configured,
           fileId: response.fileId,
-          metadata: response.metadata
+          metadata: response.metadata,
+          filePath: response.filePath || null,
+          account: response.account || null
         };
         this.updateGoogleDriveUI();
       } else {
@@ -504,7 +531,9 @@ class PromptManager {
           authenticated: false,
           configured: false,
           fileId: null,
-          metadata: null
+          metadata: null,
+          filePath: null,
+          account: null
         };
         this.updateGoogleDriveUI();
       }
@@ -514,7 +543,9 @@ class PromptManager {
         authenticated: false,
         configured: false,
         fileId: null,
-        metadata: null
+        metadata: null,
+        filePath: null,
+        account: null
       };
       this.updateGoogleDriveUI();
     }
@@ -526,51 +557,90 @@ class PromptManager {
     const fileInfo = document.getElementById('file-info');
     const fileName = document.getElementById('file-name');
     const lastUpdated = document.getElementById('last-updated');
+    const driveAccount = document.getElementById('drive-account');
+    const drivePath = document.getElementById('drive-path');
+    const driveSize = document.getElementById('drive-size');
+    const driveOpenLink = document.getElementById('drive-open-link');
     
     const authBtn = document.getElementById('google-drive-auth-btn');
     const uploadBtn = document.getElementById('google-drive-upload-btn');
     const downloadBtn = document.getElementById('google-drive-download-btn');
     const disconnectBtn = document.getElementById('google-drive-disconnect-btn');
 
+    const hideDriveLink = () => {
+      driveOpenLink.style.display = 'none';
+      driveOpenLink.dataset.url = '';
+    };
+
     if (!this.googleDriveStatus.configured) {
-      // Not configured state
       authStatus.style.background = '#f59e0b';
       statusText.textContent = 'OAuth2 not configured. Please check setup guide.';
       fileInfo.style.display = 'none';
+      hideDriveLink();
 
       authBtn.style.display = 'none';
       uploadBtn.style.display = 'none';
       downloadBtn.style.display = 'none';
       disconnectBtn.style.display = 'none';
-    } else if (this.googleDriveStatus.authenticated) {
-      // Connected state
-      authStatus.style.background = '#10b981';
-      statusText.textContent = 'Connected to Google Drive';
-      
-      if (this.googleDriveStatus.metadata) {
-        fileInfo.style.display = 'block';
-        fileName.textContent = this.googleDriveStatus.metadata.name;
-        const modifiedTime = new Date(this.googleDriveStatus.metadata.modifiedTime);
-        lastUpdated.textContent = modifiedTime.toLocaleString();
-      } else {
-        fileInfo.style.display = 'none';
-      }
+      return;
+    }
 
-      authBtn.style.display = 'none';
-      uploadBtn.style.display = 'inline-block';
-      downloadBtn.style.display = 'inline-block';
-      disconnectBtn.style.display = 'inline-block';
-    } else {
-      // Not connected state
+    if (!this.googleDriveStatus.authenticated) {
       authStatus.style.background = '#d1d5db';
       statusText.textContent = 'Not connected to Google Drive';
       fileInfo.style.display = 'none';
+      hideDriveLink();
 
       authBtn.style.display = 'inline-block';
       uploadBtn.style.display = 'none';
       downloadBtn.style.display = 'none';
       disconnectBtn.style.display = 'none';
+      return;
     }
+
+    const metadata = this.googleDriveStatus.metadata;
+    const account = this.googleDriveStatus.account || metadata?.owners?.[0] || null;
+    const accountLabel =
+      account?.emailAddress && account?.displayName
+        ? `${account.displayName} (${account.emailAddress})`
+        : account?.emailAddress || account?.displayName || 'Unknown';
+
+    authStatus.style.background = '#10b981';
+    statusText.textContent = account?.emailAddress
+      ? `Connected to Google Drive (${account.emailAddress})`
+      : 'Connected to Google Drive';
+
+    fileInfo.style.display = 'block';
+    driveAccount.textContent = accountLabel;
+
+    const path =
+      this.googleDriveStatus.filePath || (metadata?.name ? `My Drive/${metadata.name}` : 'My Drive');
+    drivePath.textContent = path;
+
+    if (metadata) {
+      fileName.textContent = metadata.name || 'ai-prompt-assistant-prompts.json';
+      lastUpdated.textContent = metadata.modifiedTime
+        ? new Date(metadata.modifiedTime).toLocaleString()
+        : 'Unknown';
+      driveSize.textContent = metadata.size != null ? this.formatBytes(metadata.size) : 'Unknown';
+
+      if (metadata.webViewLink) {
+        driveOpenLink.style.display = 'inline';
+        driveOpenLink.dataset.url = metadata.webViewLink;
+      } else {
+        hideDriveLink();
+      }
+    } else {
+      fileName.textContent = 'ai-prompt-assistant-prompts.json';
+      lastUpdated.textContent = 'Not uploaded yet';
+      driveSize.textContent = 'Unknown';
+      hideDriveLink();
+    }
+
+    authBtn.style.display = 'none';
+    uploadBtn.style.display = 'inline-block';
+    downloadBtn.style.display = 'inline-block';
+    disconnectBtn.style.display = 'inline-block';
   }
 
   async handleGoogleDriveAuth() {
@@ -698,10 +768,12 @@ class PromptManager {
           authenticated: false,
           configured: true,
           fileId: null,
-          metadata: null
+          metadata: null,
+          filePath: null,
+          account: null
         };
         this.updateGoogleDriveUI();
-        this.showSuccess(`Successfully disconnected from Google Drive! (Was: ${response.wasAuthenticated}, Now: ${response.isAuthenticated})`);
+        this.showSuccess('Successfully disconnected from Google Drive!');
       } else {
         this.showError('Failed to disconnect: ' + response.error);
       }

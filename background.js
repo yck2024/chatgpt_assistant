@@ -99,6 +99,12 @@ async function handleGoogleDriveAuth() {
     if (!isAuth) {
       await googleDriveService.authenticate();
     }
+
+    try {
+      await googleDriveService.findOrCreateFile();
+    } catch (error) {
+      console.warn('[Background] Failed to find or create Drive file during auth:', error);
+    }
     
     return { success: true, authenticated: true };
   } catch (error) {
@@ -119,10 +125,14 @@ async function handleGoogleDriveUpload(prompts) {
     }
 
     await googleDriveService.init();
-    const isAuth = await googleDriveService.isAuthenticated();
-    
+    let isAuth = await googleDriveService.isAuthenticated();
+
     if (!isAuth) {
-      throw new Error('Not authenticated. Please authenticate first.');
+      await googleDriveService.authenticate();
+      isAuth = await googleDriveService.isAuthenticated();
+      if (!isAuth) {
+        throw new Error('Authentication failed. Please try connecting again.');
+      }
     }
     
     const uploadResult = await googleDriveService.uploadPrompts(prompts);
@@ -166,10 +176,14 @@ async function handleGoogleDriveForceUpload(prompts) {
     }
 
     await googleDriveService.init();
-    const isAuth = await googleDriveService.isAuthenticated();
-    
+    let isAuth = await googleDriveService.isAuthenticated();
+
     if (!isAuth) {
-      throw new Error('Not authenticated. Please authenticate first.');
+      await googleDriveService.authenticate();
+      isAuth = await googleDriveService.isAuthenticated();
+      if (!isAuth) {
+        throw new Error('Authentication failed. Please try connecting again.');
+      }
     }
     
     await googleDriveService.forceUpload(prompts);
@@ -198,11 +212,15 @@ async function handleGoogleDriveDownload() {
     await googleDriveService.init();
     console.log('[Background] Service initialized');
     
-    const isAuth = await googleDriveService.isAuthenticated();
+    let isAuth = await googleDriveService.isAuthenticated();
     console.log('[Background] Authentication status:', isAuth);
     
     if (!isAuth) {
-      throw new Error('Not authenticated. Please authenticate first.');
+      await googleDriveService.authenticate();
+      isAuth = await googleDriveService.isAuthenticated();
+      if (!isAuth) {
+        throw new Error('Authentication failed. Please try connecting again.');
+      }
     }
     
     console.log('[Background] Authenticated, downloading prompts...');
@@ -236,12 +254,21 @@ async function handleGoogleDriveStatus() {
     }
     
     const metadata = await googleDriveService.getFileMetadata();
+    const filePath = metadata ? await googleDriveService.getFilePath(metadata) : null;
+    const account = metadata?.owners?.[0]
+      ? {
+          displayName: metadata.owners[0].displayName || null,
+          emailAddress: metadata.owners[0].emailAddress || null
+        }
+      : null;
     return { 
       success: true, 
       authenticated: true, 
       configured: true,
       fileId: googleDriveService.fileId,
-      metadata 
+      metadata,
+      filePath,
+      account
     };
   } catch (error) {
     console.error('[Background] Google Drive status error:', error);
@@ -274,13 +301,9 @@ async function handleGoogleDriveDisconnect() {
     await googleDriveService.clearAllData();
     console.log('[Background] All data cleared');
     console.log('[Background] Client ID after clear:', googleDriveService.clientId);
-    
-    // Verify disconnect worked
-    const isAuthenticated = await googleDriveService.isAuthenticated();
-    console.log('[Background] Authentication status after disconnect:', isAuthenticated);
-    
+
     console.log('[Background] Google Drive disconnected successfully');
-    return { success: true, wasAuthenticated, isAuthenticated };
+    return { success: true, wasAuthenticated };
   } catch (error) {
     console.error('[Background] Google Drive disconnect error:', error);
     return { success: false, error: error.message };

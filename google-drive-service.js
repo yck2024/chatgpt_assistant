@@ -7,6 +7,7 @@ class GoogleDriveService {
     this.scopes = ['https://www.googleapis.com/auth/drive.file'];
     this.fileName = 'ai-prompt-assistant-prompts.json';
     this.fileId = null;
+    this.maxPathDepth = 10;
   }
 
   // Initialize the service and check authentication status
@@ -34,7 +35,7 @@ class GoogleDriveService {
   // Check if user is authenticated
   async isAuthenticated() {
     try {
-      const token = await this.getAuthToken();
+      const token = await this.getAuthToken({ interactive: false });
       return !!token;
     } catch (error) {
       // Don't log this as an error since it's expected when user hasn't authenticated yet
@@ -48,20 +49,24 @@ class GoogleDriveService {
   }
 
   // Get authentication token
-  async getAuthToken() {
+  async getAuthToken({ interactive = false } = {}) {
     return new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      chrome.identity.getAuthToken({ interactive }, (token) => {
         if (chrome.runtime.lastError) {
           // Provide more specific error messages
-          const error = chrome.runtime.lastError;
-          if (error.message.includes('OAuth2 not granted or revoked')) {
+          const errorMessage = chrome.runtime.lastError.message || 'Unknown OAuth2 error';
+          if (errorMessage.includes('OAuth2 not granted or revoked')) {
             reject(new Error('OAuth2 not granted or revoked'));
-          } else if (error.message.includes('Invalid client')) {
+          } else if (errorMessage.includes('invalid_grant')) {
+            reject(new Error(`OAuth2 token error (invalid_grant): ${errorMessage}`));
+          } else if (errorMessage.includes('Invalid client')) {
             reject(new Error('Invalid OAuth2 client configuration. Please check your client ID.'));
-          } else if (error.message.includes('Access blocked')) {
+          } else if (errorMessage.includes('Access blocked')) {
             reject(new Error('Access blocked. Please check OAuth consent screen configuration.'));
+          } else if (errorMessage.includes('bad client id')) {
+            reject(new Error('Bad client id. Please verify your OAuth client and extension ID configuration.'));
           } else {
-            reject(new Error(error.message));
+            reject(new Error(errorMessage));
           }
         } else {
           resolve(token);
@@ -70,49 +75,96 @@ class GoogleDriveService {
     });
   }
 
+  async clearAllCachedAuthTokens() {
+    return new Promise((resolve) => {
+      if (chrome.identity?.clearAllCachedAuthTokens) {
+        chrome.identity.clearAllCachedAuthTokens(() => resolve());
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  async removeCachedAuthToken(token) {
+    if (!token) return;
+    return new Promise((resolve) => {
+      chrome.identity.removeCachedAuthToken({ token }, () => resolve());
+    });
+  }
+
+  async revokeToken(token) {
+    if (!token) return;
+    try {
+      await fetch('https://oauth2.googleapis.com/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `token=${encodeURIComponent(token)}`
+      });
+    } catch (error) {
+      console.warn('[GoogleDrive] Failed to revoke token on server:', error);
+    }
+  }
+
+  isRecoverableAuthError(error) {
+    const message = error?.message || '';
+    return message.includes('invalid_grant') || message.includes('OAuth2 not granted or revoked');
+  }
+
   // Authenticate user (interactive)
   async authenticate() {
-    return new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: true }, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(token);
-        }
-      });
+    try {
+      await this.clearAllCachedAuthTokens();
+      return await this.getAuthToken({ interactive: true });
+    } catch (error) {
+      if (!this.isRecoverableAuthError(error)) throw error;
+      await this.clearAllCachedAuthTokens();
+      return await this.getAuthToken({ interactive: true });
+    }
+  }
+
+  async fetchWithAuth(url, options = {}, { interactive = false, retryOnUnauthorized = true } = {}) {
+    const token = await this.getAuthToken({ interactive });
+
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+
+    const response = await fetch(url, {
+      ...options,
+      headers
     });
+
+    if (retryOnUnauthorized && response.status === 401) {
+      await this.removeCachedAuthToken(token);
+      await this.clearAllCachedAuthTokens();
+
+      const retryToken = await this.getAuthToken({ interactive });
+      const retryHeaders = new Headers(options.headers || {});
+      retryHeaders.set('Authorization', `Bearer ${retryToken}`);
+
+      return fetch(url, {
+        ...options,
+        headers: retryHeaders
+      });
+    }
+
+    return response;
   }
 
   // Remove authentication token
   async removeAuthToken() {
-    return new Promise((resolve, reject) => {
-      // First, try to get the current token
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        if (chrome.runtime.lastError) {
-          console.log('[GoogleDrive] No token found to remove');
-          resolve(); // No token to remove
-        } else if (token) {
-          // Remove the specific token
-          chrome.identity.removeCachedAuthToken({ token }, () => {
-            if (chrome.runtime.lastError) {
-              console.warn('[GoogleDrive] Failed to remove cached token:', chrome.runtime.lastError.message);
-              // Continue anyway, as the token might still be invalidated
-            }
-            
-            // Also try to revoke the token on Google's servers
-            fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`, {
-              method: 'GET'
-            }).catch(error => {
-              console.warn('[GoogleDrive] Failed to revoke token on server:', error);
-            });
-            
-            resolve();
-          });
-        } else {
-          resolve(); // No token to remove
-        }
-      });
-    });
+    try {
+      const token = await this.getAuthToken({ interactive: false });
+      if (token) {
+        await this.removeCachedAuthToken(token);
+        await this.revokeToken(token);
+      }
+    } catch (error) {
+      if (!this.isRecoverableAuthError(error)) {
+        console.warn('[GoogleDrive] Failed to get token for removal:', error.message);
+      }
+    } finally {
+      await this.clearAllCachedAuthTokens();
+    }
   }
 
   // Load file ID from storage
@@ -173,18 +225,14 @@ class GoogleDriveService {
   async findFile() {
     try {
       console.log('[GoogleDrive] Searching for file with name:', this.fileName);
-      const token = await this.getAuthToken();
       const query = `name='${this.fileName}' and trashed=false`;
       const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`;
 
       console.log('[GoogleDrive] Search query:', query);
       console.log('[GoogleDrive] Search URL:', url);
 
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await this.fetchWithAuth(url, {
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
@@ -211,7 +259,6 @@ class GoogleDriveService {
 
   // Create new prompts file
   async createFile() {
-    const token = await this.getAuthToken();
     const url = 'https://www.googleapis.com/drive/v3/files';
 
     const fileMetadata = {
@@ -220,10 +267,9 @@ class GoogleDriveService {
       description: 'AI Prompt Assistant prompts backup'
     };
 
-    const response = await fetch(url, {
+    const response = await this.fetchWithAuth(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(fileMetadata)
@@ -282,7 +328,6 @@ class GoogleDriveService {
   // Perform the actual upload without conflict checking
   async performUpload(prompts) {
     const file = await this.findOrCreateFile();
-    const token = await this.getAuthToken();
     
     const content = JSON.stringify({
       version: '1.0',
@@ -292,10 +337,9 @@ class GoogleDriveService {
 
     const url = `https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`;
 
-    const response = await fetch(url, {
+    const response = await this.fetchWithAuth(url, {
       method: 'PATCH',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: content
@@ -323,7 +367,7 @@ class GoogleDriveService {
       
       // Download current version from Drive
       const remoteData = await this.downloadPrompts();
-      const remotePrompts = remoteData.prompts || {};
+      const remotePrompts = remoteData || {};
       
       console.log('[GoogleDrive] Remote prompts count:', Object.keys(remotePrompts).length);
       
@@ -439,15 +483,11 @@ class GoogleDriveService {
       }
 
       console.log('[GoogleDrive] Using fileId for download:', this.fileId);
-      const token = await this.getAuthToken();
       const url = `https://www.googleapis.com/drive/v3/files/${this.fileId}?alt=media`;
 
       console.log('[GoogleDrive] Downloading from URL:', url);
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await this.fetchWithAuth(url, {
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
@@ -472,9 +512,30 @@ class GoogleDriveService {
         throw new Error(`Failed to download prompts: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const raw = await response.text();
+      if (!raw.trim()) {
+        console.log('[GoogleDrive] Drive file is empty, returning empty prompts');
+        return {};
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (parseError) {
+        throw new Error('Prompts file contains invalid JSON. Try uploading again to re-create it.');
+      }
+
       console.log('[GoogleDrive] Prompts downloaded successfully');
-      return data.prompts || {};
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+
+      if ('prompts' in data) {
+        return data.prompts && typeof data.prompts === 'object' && !Array.isArray(data.prompts)
+          ? data.prompts
+          : {};
+      }
+
+      if ('version' in data || 'lastUpdated' in data) return {};
+      return data;
     } catch (error) {
       console.error('[GoogleDrive] Download error:', error);
       throw error;
@@ -500,14 +561,10 @@ class GoogleDriveService {
         }
       }
 
-      const token = await this.getAuthToken();
-      const url = `https://www.googleapis.com/drive/v3/files/${this.fileId}?fields=id,name,modifiedTime,size`;
+      const url = `https://www.googleapis.com/drive/v3/files/${this.fileId}?fields=id,name,modifiedTime,size,parents,webViewLink,owners(displayName,emailAddress)`;
 
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await this.fetchWithAuth(url, {
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
@@ -534,6 +591,36 @@ class GoogleDriveService {
     }
   }
 
+  async getFilePath(metadataOverride = null) {
+    const metadata = metadataOverride || (await this.getFileMetadata());
+    if (!metadata) return null;
+
+    const fileName = metadata.name || this.fileName;
+    const parents = metadata.parents || [];
+    const folderNames = [];
+
+    let currentParentId = parents[0] || 'root';
+    while (
+      currentParentId &&
+      currentParentId !== 'root' &&
+      folderNames.length < this.maxPathDepth
+    ) {
+      const url = `https://www.googleapis.com/drive/v3/files/${currentParentId}?fields=id,name,parents`;
+      const response = await this.fetchWithAuth(url, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) break;
+
+      const folder = await response.json();
+      folderNames.push(folder.name || currentParentId);
+      currentParentId = folder.parents?.[0] || 'root';
+    }
+
+    const parts = ['My Drive', ...folderNames.reverse(), fileName].filter(Boolean);
+    return parts.join('/');
+  }
+
   // Delete the prompts file
   async deleteFile() {
     try {
@@ -545,15 +632,9 @@ class GoogleDriveService {
         return;
       }
 
-      const token = await this.getAuthToken();
       const url = `https://www.googleapis.com/drive/v3/files/${this.fileId}`;
 
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await this.fetchWithAuth(url, { method: 'DELETE' });
 
       if (!response.ok && response.status !== 404) {
         throw new Error(`Failed to delete file: ${response.status}`);
