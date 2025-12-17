@@ -1,20 +1,24 @@
 PERMISSION JUSTIFICATIONS FOR CHROME WEB STORE
 
+IDENTITY PERMISSION:
+This permission is required to authenticate with Google Drive for the backup and sync feature. It allows users to securely save their custom prompts to their personal Google Drive, ensuring their data is backed up and accessible across devices. The extension uses the 'drive.file' scope, meaning it can only access files it has created itself, ensuring complete privacy for the user's other Drive files.
+
 STORAGE PERMISSION:
-This extension saves your custom prompt shortcuts locally on your device using Chrome's storage API. This allows your prompts to persist between browser sessions and sync across your devices when Chrome sync is enabled. No data is sent to external servers - everything is stored locally for your privacy and security.
+This extension saves your custom prompt shortcuts locally on your device using Chrome's storage API. This allows your prompts to persist between browser sessions and sync across your devices when Chrome sync is enabled. No data is sent to external servers (except for the optional Google Drive backup explicitly enabled by the user) - everything is stored locally for your privacy and security.
 
-ACTIVE TAB PERMISSION:
-This permission is required to inject the autocomplete functionality into ChatGPT pages when you interact with the extension. It only activates when you click the extension icon or use keyboard shortcuts, and provides temporary access to the current tab to enable seamless prompt insertion. The extension cannot access other tabs or monitor your browsing activity.
+NOTIFICATIONS PERMISSION:
+This permission is used to provide feedback to the user when long-running background tasks complete, such as successful Google Drive backups, sync operations, or if an error occurs during these processes. This ensures the user is kept informed of the extension's status without needing to keep the options page open.
 
-HOST PERMISSIONS (chatgpt.com, chat.openai.com):
-These permissions allow the extension to run content scripts on ChatGPT's official websites only. This is essential for the core functionality - providing autocomplete suggestions and keyboard shortcuts within the ChatGPT interface. The extension is limited to these specific domains and cannot access any other websites or your browsing data.
+HOST PERMISSIONS (chatgpt.com, claude.ai, gemini.google.com, etc.):
+These permissions allow the extension to run content scripts on specific AI platforms (ChatGPT, Claude, Google Gemini, Google AI Studio, DuckDuckGo AI, and Microsoft Copilot). This is essential for the core functionality - providing autocomplete suggestions and keyboard shortcuts directly within these chat interfaces. The extension is strictly limited to these specific domains and cannot access any other websites or your browsing data.
 
 PRIVACY & SECURITY:
 - All data stored locally on your device
-- No external data transmission or collection
-- No access to your ChatGPT conversations
+- Optional encrypted backup to your own Google Drive
+- No external data transmission to third-party servers
+- No access to your chat conversations (only inputs you type)
 - Minimal permissions for maximum privacy
 - Data automatically deleted when extension is uninstalled
 
 ALTERNATIVES CONSIDERED:
-We explored alternatives like clipboard APIs and external storage, but these would compromise user experience and privacy. The current permission set provides the best balance of functionality, privacy, and user control. 
+We explored using only local storage, but users requested a way to backup their prompts and sync them between different profiles/computers more reliably. The Google Drive integration (via Identity permission) provides this requested functionality securely. The notifications permission improves user experience by confirming background actions. The current permission set provides the best balance of advanced functionality, privacy, and user control. 
