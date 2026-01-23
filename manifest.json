@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Prompt Assistant",
-  "version": "3.1",
+  "version": "3.2",
   "description": "Add custom prompt shortcuts to ChatGPT, Claude, Gemini, DuckDuckGo, and Microsoft Copilot with autocomplete functionality",
   "permissions": [
     "storage",
@@ -11,7 +11,8 @@
   "key":"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAskyLkR8sLZxAYEXwitsKJH7Nuk/MDl8fpgVozF1UW1DG6k5Y5MVUvS39otfYsj+iVeg/VuUJxPA2JzE3V1gr6It5oBvIVITu4U33ACXxKb79nAkH3qjsYEbIajMHf1tbbUXeJgyHBwooyIN7m1/997ecz9PROO5Ry7JdCkdGNsV9UHg/f++tkbRvGcWWLrH6GATxTvLDDMg3XJ4pudS8ohzoaN38ZJeEXiQxn7WNVgJFmYn1PYWN7TwFsXYEawS7JCU/QjPcqP+dzQfY2qJ6gIeO2Y4jgK1SKjnYAXWXfQS7mqIR/zjo2U+SuyLABVjPC62Qlg1wiXp/5gWrqpI6LwIDAQAB",
   "oauth2": {
     "client_id": "811759403062-oilssdj6ou5jdjv9ht4ko2tl384bre09.apps.googleusercontent.com",
-    "scopes": [
+    "scopes": [ 
+      
       "https://www.googleapis.com/auth/drive.file"
     ]
   },
